@@ -33,4 +33,3 @@ Selected actual output lines (ANSI removed):
 2026-10-15T21:52:19.9152236Z Database migrate completed
 2026-10-15T21:52:21.7245825Z Database seed completed
 2026-10-15T21:52:23.5353647Z {"accounts":[{"id":"a4f4a5e7-03f1-4104-8cbf-096e6b8645c3","role":"UPLOADER"},{"id":"4af45637-9889-4e49-b6e1-2461362c6d3c","role":"REVIEWER"}],"assetCount":0}
-

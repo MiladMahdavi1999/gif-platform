@@ -1,0 +1,154 @@
+name: gif-platform-b00
+
+x-local-network: &local-network
+  NO_PROXY: localhost,127.0.0.1,::1,api,web,db,minio,edge
+  no_proxy: localhost,127.0.0.1,::1,api,web,db,minio,edge
+
+x-app: &app
+  image: gif-platform-b00:local
+  build:
+    context: ..
+    dockerfile: infra/docker/Dockerfile
+  init: true
+  stop_grace_period: 10s
+
+services:
+  db:
+    image: postgres:17.6-bookworm
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Copy .env.example to .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set local database password}
+      POSTGRES_DB: ${POSTGRES_DB:?Set database name}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 3s
+      timeout: 2s
+      retries: 20
+    stop_grace_period: 10s
+
+  minio:
+    image: gif-platform-minio:2025-10-15
+    build:
+      context: ..
+      dockerfile: infra/minio/Dockerfile
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:?Set local storage access key}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:?Set local storage secret}
+    ports:
+      - '127.0.0.1:9000:9000'
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: [CMD, /usr/local/bin/health]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+    stop_grace_period: 10s
+
+  api:
+    <<: *app
+    environment:
+      <<: *local-network
+      NODE_ENV: production
+      PORT: '4000'
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Set public base URL}
+      DATABASE_URL: ${DATABASE_URL:?Set database URL}
+      S3_INTERNAL_ENDPOINT: ${S3_INTERNAL_ENDPOINT:?Set internal storage URL}
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:?Set browser storage URL}
+      S3_REGION: ${S3_REGION:?Set storage region}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Set local storage access key}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Set local storage secret}
+    depends_on:
+      db: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:4000/api/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 3s
+      timeout: 4s
+      retries: 20
+
+  web:
+    <<: *app
+    environment: *local-network
+    command:
+      [
+        node,
+        apps/web/node_modules/next/dist/bin/next,
+        start,
+        apps/web,
+        --hostname,
+        '0.0.0.0',
+        --port,
+        '3000',
+      ]
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  worker:
+    <<: *app
+    command: [node, apps/worker/dist/main.js]
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "const fs=require('node:fs');process.exit(Date.now()-Number(fs.readFileSync('/tmp/gif-worker-heartbeat','utf8'))<15000?0:1)",
+        ]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+
+  edge:
+    image: caddy:2.10.2-alpine
+    environment: *local-network
+    ports:
+      - '127.0.0.1:8080:8080'
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web: { condition: service_healthy }
+      api: { condition: service_healthy }
+    healthcheck:
+      test:
+        [
+          CMD,
+          wget,
+          -q,
+          -Y,
+          'off',
+          -O,
+          /dev/null,
+          http://127.0.0.1:8080/api/v1/health/live,
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    stop_grace_period: 10s
+
+volumes:
+  postgres_data:
+  minio_data:
+  caddy_data:
+  caddy_config:

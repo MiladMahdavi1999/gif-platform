@@ -1,0 +1,39 @@
+name: B00 checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  b00:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.3.0
+      - uses: pnpm/action-setup@v4.1.0
+        with:
+          version: 10.34.7
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: cp .env.example .env
+      - run: pnpm dev
+      - run: pnpm test:smoke
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - run: node scripts/test-dependency-failures.mjs
+      - if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: b00-browser-evidence
+          path: test-results/
+          if-no-files-found: ignore
+      - if: always()
+        run: docker compose --env-file .env -f infra/compose.yaml down

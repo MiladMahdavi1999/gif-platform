@@ -1,0 +1,9 @@
+pnpm-lock.yaml
+node_modules
+**/dist
+**/.next
+**/next-env.d.ts
+work
+test-results
+playwright-report
+/*-*.md

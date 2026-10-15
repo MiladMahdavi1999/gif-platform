@@ -1,0 +1,29 @@
+import pg from 'pg';
+
+// Connectivity only. No schema, migrations, seed or domain operations in B00.
+export function createDatabaseProbe(connectionString: string) {
+  const pool = new pg.Pool({
+    connectionString,
+    max: 2,
+    connectionTimeoutMillis: 1500,
+    query_timeout: 1500,
+    idleTimeoutMillis: 1000,
+  });
+  // A dependency restart can close idle clients. Do not crash or log connection details.
+  pool.on('error', () => {});
+  return {
+    async check(): Promise<void> {
+      const client = await pool.connect();
+      let failed = false;
+      try {
+        await client.query('SELECT 1');
+      } catch (error) {
+        failed = true;
+        throw error;
+      } finally {
+        client.release(failed);
+      }
+    },
+    close: () => pool.end(),
+  };
+}

@@ -1,0 +1,29 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+  background: #101820;
+  color: #f3f6f8;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 54rem;
+  margin: 14vh auto;
+  padding: 2rem;
+}
+h1 {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1.12;
+}
+p {
+  line-height: 1.6;
+}
+.eyebrow {
+  color: #a0e7d4;
+}
+[role='status'] {
+  border: 1px solid #698395;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}

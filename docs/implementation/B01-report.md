@@ -19,7 +19,8 @@ reference documents remain unchanged.
   asset_variants, moderation_decisions, search_documents, media_jobs, audit_events.
 - `migrate.ts`: transactional SQL runner consuming the Drizzle version journal,
   advisory locking and an immutable SHA-256 ledger in `gif_migrations.history`.
-  Repeated/concurrent runs preserve data; history drift refuses to run.
+  Repeated/concurrent runs preserve data; history drift refuses to run. SQL checkout line endings are pinned to LF for stable
+  checksums across platforms.
 - `dev.ts`, `reset.ts`, `cli.ts`, development rollback SQL and command wrappers:
   distinct uploader/reviewer seed with Argon2id; explicit development-only mode,
   opt-in, local-target checks and reset confirmation; sanitized CLI output.
@@ -63,19 +64,19 @@ pnpm **10.34.7** on PATH. This avoids the executor's incompatible system pnpm
 Network-enabled execution is needed even for local listener/database tests in
 this sandbox. No policy bypass or TLS disabling was used.
 
-| Command                                                                           | Actual result                                                           |
-| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Pinned `pnpm install`                                                             | PASS; lockfile updated with exact direct pins                           |
-| `pnpm typecheck`                                                                  | PASS                                                                    |
-| `pnpm lint`                                                                       | PASS                                                                    |
-| `pnpm test`                                                                       | PASS, 50 unit tests at initial verification; final count recorded below |
-| `pnpm build`                                                                      | PASS, API/worker/packages and Next production build                     |
-| `pnpm db:check`                                                                   | PASS                                                                    |
-| `pnpm db:generate` after generation                                               | PASS, no schema changes                                                 |
-| `TEST_DATABASE_URL=… ALLOW_DATABASE_INTEGRATION_TESTS=true pnpm test:integration` | PASS, 13 tests against real PostgreSQL 17.6                             |
-| Original seven document comparison                                                | PASS, unchanged against main                                            |
-| Full B00/B01 GitHub Actions                                                       | Pending execution on PR; updated evidence follows                       |
-| Local full Compose/browser/failure/lifecycle checks                               | NOT RUN yet; remote CI runs these gates                                 |
+| Command                                                                           | Actual result                                                |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Pinned `pnpm install --frozen-lockfile`                                           | PASS; lockfile updated with exact direct pins                |
+| `pnpm typecheck`                                                                  | PASS                                                         |
+| `pnpm lint`                                                                       | PASS                                                         |
+| `pnpm test`                                                                       | PASS, 51 unit tests / five files, including all 18 B00 tests |
+| `pnpm build`                                                                      | PASS, API/worker/packages and Next production build          |
+| `pnpm db:check`                                                                   | PASS                                                         |
+| `pnpm db:generate` after generation                                               | PASS, no schema changes                                      |
+| `TEST_DATABASE_URL=… ALLOW_DATABASE_INTEGRATION_TESTS=true pnpm test:integration` | PASS, 13 tests against real PostgreSQL 17.6                  |
+| Original seven document comparison                                                | PASS, unchanged against main                                 |
+| Full B00/B01 GitHub Actions                                                       | PASS, both jobs; observed run linked below                   |
+| Local full Compose/browser/failure/lifecycle checks                               | NOT RUN locally; PASS in GitHub Actions                      |
 
 The integration suite verifies all 15 foreign keys independently, key uniqueness,
 all enum CHECK sets, scalar validation, two distinct roles and Argon2id verify,
@@ -88,6 +89,9 @@ Initial development runs failed on a BigInt Drizzle default serialization and a
 BigInt test-name formatter; these were corrected using an SQL default and a
 non-JSON test label. The first DB run passed its assertions but failed teardown
 because forced DROP raced connection shutdown; removing FORCE fixed the error.
+The initial PR CI database job had 11 passes and two failures because the ignored
+`work/` directory did not exist in a clean checkout. The test setup now creates it;
+the corrected PostgreSQL CI job passed all 13 tests.
 An initial restricted-network unit invocation could not open loopback listeners;
 rerunning with the sandbox's supported network capability passed. These initial
 failures are not represented as successful runs.
@@ -99,7 +103,41 @@ persistence, public search/delivery and picker workflows are NOT RUN because
 B02+ is outside this PR. B00's negative HTTP test still verifies product routes
 are absent. No external media fixtures or Host action endpoints were added.
 
-Final CI links, final verification counts and any blockers will be appended after
-observing the actual PR checks. No merge is authorized or performed.
+## Completed CI and runtime evidence
+
+[Full B00/B01 CI run](https://github.com/MiladMahdavi1999/gif-platform/actions/runs/38812479656)
+completed successfully on code commit
+`b6588d5765c3d20a3cb23110e6be07307a14d300`. Both `b00` and `b01-database`
+jobs passed. Selected actual output is retained in [B01-ci-evidence.txt](B01-ci-evidence.txt).
+The subsequent evidence/line-ending commit changes documentation and checkout
+rules only; its format check was also executed locally.
+
+Observed gates from the completed run:
+
+- Frozen install, format, lint, strict typecheck, production build: PASS.
+- Unit tests: **51 passed / five files**, including all 18 B00 baseline tests.
+- PostgreSQL 17.6 integration: **13 passed**, no unhandled errors or skipped tests.
+- Drizzle migration check and no generation drift: PASS.
+- Fresh six-service Compose boot and home/live/ready HTTP smoke: PASS.
+- Actual migrate→seed→migrate→seed commands: PASS. Inspection showed exactly
+  two different UUIDs, roles UPLOADER/REVIEWER and zero assets.
+- Confirmed `db:reset`, remigrate/reseed and another two-user/zero-asset
+  inspection: PASS.
+- Browser: **all three Playwright tests passed**. The home rendered its B00
+  heading and real ready state; intercepted failure cases also passed.
+- Real PostgreSQL/MinIO stop→503 and restore→200, and API stop→502 and browser
+  failure/recovery: PASS.
+- Worker SIGTERM exit 0, credential-free runtime logs, fresh-volume six-service
+  reboot and another migrate/seed/inspection: PASS.
+- Local README integration overlay up→test→down: PASS with 13 tests. Frozen
+  reinstall and both Compose configuration validations: PASS.
+- `git diff --check` and all seven original document comparisons: PASS.
+
+Changed files are listed in the [PR file diff](https://github.com/MiladMahdavi1999/gif-platform/pull/2/files).
+The PR remains open and unmerged. **Unresolved B01 blockers: none.**
+The first CI database failure is retained in the history and explained above;
+there are no outstanding failed gates. Local six-service/browser checks remain
+unexecuted locally; their real-service verification ran on GitHub Actions.
+No production deployment, authentication or later feature execution is claimed.
 
 **B02 NOT STARTED.**

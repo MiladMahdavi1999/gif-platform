@@ -1,0 +1,3 @@
+# Keep migration checksums stable across platform checkout defaults.
+packages/db/migrations/*.sql text eol=lf
+packages/db/rollback/*.sql text eol=lf

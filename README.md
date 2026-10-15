@@ -1,6 +1,6 @@
 # GIF Platform — B01
 
-Local modular-monolith bootstrap only: Next.js home, Fastify health API, idle
+Local modular-monolith development stack: Next.js home, Fastify health API, idle
 worker, PostgreSQL 17, MinIO and Caddy, plus the B01 database foundation. **B02 NOT STARTED.**
 
 B00 was merged in [PR #1](https://github.com/MiladMahdavi1999/gif-platform/pull/1).

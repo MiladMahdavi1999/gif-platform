@@ -60,14 +60,21 @@ npx --yes pnpm@10.34.7 test:smoke
 npx --yes pnpm@10.34.7 exec playwright install --with-deps chromium
 npx --yes pnpm@10.34.7 test:e2e
 node scripts/test-dependency-failures.mjs
+node scripts/test-local-lifecycle.mjs
 ```
 
-The final command stops/restores this local project's DB, MinIO and API. It
+The dependency-failure command stops/restores this local project's DB, MinIO and API. It
 asserts real HTTP failure/recovery through Caddy and the corresponding browser
 status. Run it only on this disposable local stack, without concurrent tests.
 It restores each stopped service in `finally`. For a preinstalled Chromium, set
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium` on browser commands
 instead of downloading a second browser.
+
+The lifecycle command checks worker shutdown and all service logs for configured
+credentials, **deletes this project's disposable volumes**, reboots all six
+services from the built images and asserts readiness again. Use it only on the
+empty B00 development stack. CI retains the checked runtime log and browser
+screenshots as an artifact.
 
 Health contracts:
 

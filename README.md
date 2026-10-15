@@ -126,7 +126,8 @@ npx --yes pnpm@10.34.7 db:seed:dev
 Seed/inspect/reset require **all three** settings from the local `.env`:
 `NODE_ENV=development`, `APP_ENV=development`, and
 `ALLOW_DEV_DATABASE_COMMANDS=true`. Only `localhost`, loopback, or Compose `db`
-and a `gif_platform`/`gif_platform_*` database are accepted. Reset also needs the
+and a `gif_platform`/`gif_platform_*` database are accepted. Query-string
+connection overrides are refused. Reset also needs the
 exact database name in `--confirm=...`. `NODE_ENV=production` or
 `APP_ENV=production` always refuses seed/reset, including the lifecycle test.
 The API retains its production runtime mode and never receives seed passwords.

@@ -14,6 +14,7 @@ export function assertDevelopmentDatabase(env: NodeJS.ProcessEnv): string {
   const url = new URL(env.DATABASE_URL ?? '');
   const database = decodeURIComponent(url.pathname.slice(1));
   if (
+    url.search !== '' ||
     !['postgres:', 'postgresql:'].includes(url.protocol) ||
     !['localhost', '127.0.0.1', '[::1]', 'db'].includes(url.hostname) ||
     !/^gif_platform(?:_[a-z0-9]+)*$/.test(database)

@@ -15,6 +15,7 @@ export function requireDevelopment(confirmation) {
   const target = new URL(process.env.DATABASE_URL ?? '');
   const database = decodeURIComponent(target.pathname.slice(1));
   if (
+    target.search !== '' ||
     !['postgres:', 'postgresql:'].includes(target.protocol) ||
     !['localhost', '127.0.0.1', '[::1]', 'db'].includes(target.hostname) ||
     !/^gif_platform(?:_[a-z0-9]+)*$/.test(database)

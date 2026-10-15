@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { execFileSync, spawnSync } from 'node:child_process';
 import pg from 'pg';
@@ -95,6 +95,7 @@ async function transaction(run: () => Promise<void>) {
   }
 }
 async function temporaryMigrations(run: (directory: URL) => Promise<void>) {
+  await mkdir('work', { recursive: true });
   const path = await mkdtemp('work/b01-migrations-');
   const url = pathToFileURL(`${process.cwd()}/${path}/`);
   try {

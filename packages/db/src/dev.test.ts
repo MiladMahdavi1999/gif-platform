@@ -18,6 +18,14 @@ it('requires explicit development mode, opt-in and a local target', () => {
     { DATABASE_URL: 'postgresql://local@production.example/gif_platform' },
     { DATABASE_URL: 'postgresql://local@localhost/production' },
     { DATABASE_URL: '' },
+    {
+      DATABASE_URL:
+        'postgresql://local@localhost/gif_platform?host=production.example',
+    },
+    {
+      DATABASE_URL:
+        'postgresql://local@localhost/gif_platform?dbname=production',
+    },
   ])
     expect(() => assertDevelopmentDatabase({ ...valid, ...patch })).toThrow();
 });

@@ -1,0 +1,40 @@
+{
+  "name": "gif-platform",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.7",
+  "engines": {
+    "node": ">=24.19.0 <25",
+    "pnpm": "10.34.7"
+  },
+  "scripts": {
+    "build:packages": "pnpm --filter \"./packages/**\" -r build",
+    "build": "pnpm -r build",
+    "lint": "eslint .",
+    "typecheck": "pnpm build:packages && pnpm -r typecheck && tsc -p tsconfig.tools.json",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm build:packages && vitest run",
+    "test:e2e": "playwright test",
+    "test:integration": "node scripts/not-implemented.mjs \"DB/domain integration (B01+)\"",
+    "db:migrate": "node scripts/not-implemented.mjs \"Database migrations (B01)\"",
+    "db:seed:dev": "node scripts/not-implemented.mjs \"Development seed (B01)\"",
+    "dev": "docker compose --env-file .env -f infra/compose.yaml up --build --wait",
+    "stop": "docker compose --env-file .env -f infra/compose.yaml down",
+    "test:smoke": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.1",
+    "prettier": "3.9.10",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.2",
+    "vitest": "5.0.5"
+  }
+}

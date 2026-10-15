@@ -1,10 +1,12 @@
 # B00 known gaps
 
-- Full B00 acceptance is blocked: the managed environment denies
-  `storage.googleapis.com`, needed for the pinned MinIO source build's Go module
-  downloads. Six-service healthy boot, ready 200, healthy browser and full
-  dependency recovery are unverified. See [B00-report.md](B00-report.md) for actual
-  executed commands and the distinction between partial and full-stack results.
+- The recovery executor denies `storage.googleapis.com`, needed for some Go
+  module downloads during the pinned MinIO source build. Full local execution in
+  that executor is therefore unavailable. The full six-service stack, browser,
+  failure/recovery, log hygiene and reset/reboot tests **passed on GitHub Actions**.
+  See [B00-report.md](B00-report.md) for the tested commit, CI links and the
+  distinction between local and remote results. Repeating the full build in the
+  recovery executor requires that host in its Allowed Hosts.
 - ESLint 9.39.5 is deprecated by npm but matches the Next lint plugins' declared
   peer ranges. Revisit the toolchain when those plugins support ESLint 10; do not
   force an unsupported peer combination.

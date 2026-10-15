@@ -3,9 +3,9 @@
 Local modular-monolith bootstrap only: Next.js home, Fastify health API, idle
 worker, PostgreSQL 17, MinIO and Caddy. **B01 NOT STARTED.**
 
-Full B00 acceptance is currently blocked by the recovery environment's network
-policy during the MinIO source build. The six-service startup and healthy-state
-tests are not yet verified; see the [actual results](docs/implementation/B00-report.md).
+The full six-service startup, browser, dependency failure/recovery and fresh-volume
+reboot tests passed in GitHub Actions. The recovery executor's local MinIO build
+remains limited by its network policy; see the [actual results](docs/implementation/B00-report.md).
 
 The seven original Phase 03 documents remain unchanged at the repository root;
 `Coding-Agent-Handover.md` and `Implementation-Backlog.md` define this task.

@@ -1,0 +1,19 @@
+Source: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/38808669208
+Tested commit: f1d8382fff03bfc05e075e8781602368092b5903
+Run conclusion: success
+Selected verbatim result lines (ANSI color codes removed):
+
+2026-10-15T21:17:43.1397562Z  Test Files  3 passed (3)
+2026-10-15T21:17:43.1398678Z       Tests  18 passed (18)
+2026-10-15T21:20:36.1582265Z PASS: single-origin home, liveness and dependency readiness
+2026-10-15T21:21:05.9524632Z   3 passed (2.8s)
+2026-10-15T21:21:11.8181737Z PASS: db stopped -> readiness 503, liveness 200, browser unavailable
+2026-10-15T21:21:16.8188106Z PASS: db restored -> readiness 200, browser ready
+2026-10-15T21:21:21.8502844Z PASS: minio stopped -> readiness 503, liveness 200, browser unavailable
+2026-10-15T21:21:26.9129479Z PASS: minio restored -> readiness 200, browser ready
+2026-10-15T21:21:31.9334486Z PASS: API stopped -> edge 502, home still renders, browser unavailable
+2026-10-15T21:21:36.9761889Z PASS: API restored -> readiness 200, browser ready
+2026-10-15T21:21:37.4523486Z PASS: worker SIGTERM exits 0 and records graceful shutdown
+2026-10-15T21:21:37.7708504Z PASS: all six service logs exclude configured credentials/DB URL
+2026-10-15T21:21:49.5767110Z PASS: single-origin home, liveness and dependency readiness
+2026-10-15T21:21:49.5777009Z PASS: fresh local volumes reboot all six services and readiness 200

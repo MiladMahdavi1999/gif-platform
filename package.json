@@ -17,12 +17,16 @@
     "format:check": "prettier --check .",
     "test": "pnpm build:packages && vitest run",
     "test:e2e": "playwright test",
-    "test:integration": "node scripts/not-implemented.mjs \"DB/domain integration (B01+)\"",
-    "db:migrate": "node scripts/not-implemented.mjs \"Database migrations (B01)\"",
-    "db:seed:dev": "node scripts/not-implemented.mjs \"Development seed (B01)\"",
+    "test:integration": "pnpm build:packages && vitest run --config vitest.integration.config.ts",
+    "db:migrate": "node scripts/database-command.mjs migrate",
+    "db:seed:dev": "node scripts/database-command.mjs seed",
     "dev": "docker compose --env-file .env -f infra/compose.yaml up --build --wait",
     "stop": "docker compose --env-file .env -f infra/compose.yaml down",
-    "test:smoke": "node scripts/smoke.mjs"
+    "test:smoke": "node scripts/smoke.mjs",
+    "db:generate": "drizzle-kit generate --config=packages/db/drizzle.config.ts",
+    "db:check": "drizzle-kit check --config=packages/db/drizzle.config.ts",
+    "db:inspect:dev": "node scripts/database-command.mjs inspect",
+    "db:reset": "node scripts/database-command.mjs reset"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",
@@ -35,6 +39,7 @@
     "prettier": "3.9.10",
     "typescript": "5.9.3",
     "typescript-eslint": "8.71.2",
-    "vitest": "5.0.5"
+    "vitest": "5.0.5",
+    "drizzle-kit": "0.31.11"
   }
 }

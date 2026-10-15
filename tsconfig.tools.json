@@ -8,6 +8,8 @@
     "vitest.config.ts",
     "tests/**/*.ts",
     "apps/**/*.test.ts",
-    "packages/**/*.test.ts"
+    "packages/**/*.test.ts",
+    "vitest.integration.config.ts",
+    "packages/db/drizzle.config.ts"
   ]
 }

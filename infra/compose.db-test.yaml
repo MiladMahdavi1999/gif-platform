@@ -1,0 +1,16 @@
+# Disposable local integration dependency, independent from the application DB.
+name: gif-platform-b01-tests
+services:
+  db-test:
+    image: postgres:17.6-bookworm
+    environment:
+      POSTGRES_USER: gif_platform
+      POSTGRES_PASSWORD: local_only_integration_password
+      POSTGRES_DB: gif_platform_test
+    ports: ['127.0.0.1:55432:5432']
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD, pg_isready, -U, gif_platform, -d, gif_platform_test]
+      interval: 3s
+      timeout: 2s
+      retries: 20

@@ -95,7 +95,9 @@ test('browser uploads directly to localhost:9000, confirms private receipt and p
     `/media/${assetId}/display.gif`,
   ])
     expect((await page.request.get(path)).status()).toBe(404);
-  const anonymous = await browser.newContext();
+  const anonymous = await browser.newContext({
+    baseURL: 'http://localhost:8080',
+  });
   try {
     const other = await anonymous.newPage();
     expect(

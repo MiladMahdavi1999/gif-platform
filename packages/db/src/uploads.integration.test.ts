@@ -4,7 +4,7 @@ import { beforeAll, afterAll, describe, it, expect } from 'vitest';
 import { createApp } from '../../../apps/api/src/app.js';
 import { LoginLimiter } from '../../../apps/api/src/auth.js';
 import { createAuthRepository } from './auth.js';
-import { createUploadRepository } from './uploads.js';
+import { createUploadRepository } from '@gif/db';
 import { migrate } from './migrate.js';
 import { assertDevelopmentDatabase, seedDevelopment } from './dev.js';
 import { animatedGif } from '@gif/testing';

@@ -1,19 +1,19 @@
-# GIF Platform — B03
+# GIF Platform — B05
 
-Local modular-monolith development stack: Next.js home, Fastify health API, idle
-worker, PostgreSQL 17, MinIO and Caddy, with authenticated direct uploads, durable private receipts and a lease-based private GIF processor. **B05 NOT STARTED.**
+Local modular-monolith development stack: Next.js, Fastify, PostgreSQL 17, MinIO and Caddy, with authenticated direct uploads, durable private receipts, a lease-based private GIF processor and reviewer-only moderation/takedown. **B06 NOT STARTED.**
 
 B00 was merged in [PR #1](https://github.com/MiladMahdavi1999/gif-platform/pull/1).
 B01 was merged in [PR #2](https://github.com/MiladMahdavi1999/gif-platform/pull/2).
 B02 was merged in [PR #3](https://github.com/MiladMahdavi1999/gif-platform/pull/3).
-See [B03 results](docs/implementation/B03-report.md) for current checks and
+B03 and B04 were merged in [PR #4](https://github.com/MiladMahdavi1999/gif-platform/pull/4) and [PR #5](https://github.com/MiladMahdavi1999/gif-platform/pull/5).
+See [B05 results](docs/implementation/B05-report.md) for current checks and
 [B01](docs/implementation/B01-report.md) / [B00](docs/implementation/B00-report.md) for the baselines.
 
 The seven original Phase 03 documents remain unchanged at the repository root;
 `Coding-Agent-Handover.md` and `Implementation-Backlog.md` define this task.
 Implementation choices remain Provisional. The 13 core tables and pure state
 guards exist. Session login, owner receipts and real private S3 uploads are implemented.
-The worker decodes and re-encodes GIFs into verified private derivatives. Moderation workflow, public search/media delivery and Picker remain unimplemented.
+The worker decodes and re-encodes GIFs into verified private derivatives. Reviewers can approve, reject and remove assets with audit history. Public search/media delivery and Picker remain unimplemented.
 
 ## Run a clean clone
 
@@ -244,7 +244,7 @@ check. The public home and dependency health checks remain available anonymously
 Use the two distinct **B01** seed accounts configured in your ignored `.env`;
 passwords are never printed. Run `pnpm db:migrate` and `pnpm db:seed:dev` before
 signing in. The seed is opt-in development tooling and does not reset an existing
-account password. No moderation decisions are implemented. Processing produces private derivatives only.
+account password. Processing produces private derivatives; a distinct reviewer can inspect and decide in `/review`.
 
 - `POST /api/v1/auth/login`: strict JSON `{email,password}` and exact configured
   `Origin`; returns the user and session-bound CSRF token, sets HttpOnly cookie.
@@ -287,7 +287,7 @@ PostgreSQL database with B01 migrations/seed (same opt-in/URL requirements as
 above). Browser auth tests disable traces/video to keep credentials and session
 values out of retained evidence. Never enable authentication request traces or
 commit browser storage state. See `docs/implementation/B02-report.md` for actual
-local/CI baseline results and Provisional implementation choices. **B05 NOT STARTED.**
+local/CI baseline results and Provisional implementation choices. **B06 NOT STARTED.**
 
 ## B03 private upload checkpoint
 
@@ -369,7 +369,7 @@ reproduce verification when a managed executor cannot build Go dependencies.
 
 There is no automatic approval, publication, search or media delivery. B04 adds private processing only.
 Expired/unreferenced objects and old versions stay private; audited retention and
-orphan cleanup require a later operational task. **B05 NOT STARTED.**
+orphan cleanup require a later operational task. **B06 NOT STARTED.**
 
 ## B04 private GIF processing
 
@@ -381,4 +381,14 @@ The pinned worker uses FFmpeg **5.1.9** (`7:5.1.9-0+deb12u1`). Decoder children 
 
 Provisional defaults: 20 MiB input/per-output, 4096 per dimension, 16M pixels, 300 frames, 30 seconds duration, 10 seconds per decoder call, 60 seconds per job, 30-second leases and one-second polls. All are validated configuration settings (see `.env.example`). The receipt reports typed terminal errors; storage/infrastructure failures retry with bounded exponential backoff and jitter.
 
-Linux local checks require `cc`, `ffmpeg` and `ffprobe` in `/usr/bin`; `pnpm test` and `pnpm test:integration` compile the decoder boundary and its probe. Full integration requires the existing PostgreSQL/MinIO opt-ins and credentials documented above. The browser suite additionally stops/restarts the real Compose worker and retains private pending/success/failure screenshots. See [B04 report](docs/implementation/B04-report.md) for exact commands, execution location, crash/concurrency evidence and gaps. **B05 NOT STARTED.**
+Linux local checks require `cc`, `ffmpeg` and `ffprobe` in `/usr/bin`; `pnpm test` and `pnpm test:integration` compile the decoder boundary and its probe. Full integration requires the existing PostgreSQL/MinIO opt-ins and credentials documented above. The browser suite additionally stops/restarts the real Compose worker and retains private pending/success/failure screenshots. See [B04 report](docs/implementation/B04-report.md) for processing evidence and [B05 report](docs/implementation/B05-report.md) for moderation evidence. **B06 NOT STARTED.**
+
+## B05 reviewer checkpoint
+
+Sign in with the separate configured reviewer account and open `/review`. Only `SUCCEEDED / PENDING` GIFs enter the paginated queue. Open a queue item to inspect metadata, independent states, a static poster and an explicitly requested private GIF animation. No uploaded original is previewed. Approve uses `POLICY_PASSED`; rejection and removal require an action-specific reason, with optional notes up to 2000 characters. This reason taxonomy is a Provisional local choice.
+
+Approval atomically records the decision/audit, increments `row_version`, grants the authorization states and creates `search_documents`; rejection/removal atomically restrict authorization and delete the projection. The technical processing/delivery axes are preserved. Use **Open asset** with the asset ID to inspect a previous decision or remove an approved asset. Decision and audit history remain visible to reviewers. A conflict requires **Reload asset** before another decision. Identical current retries are idempotent; another actor, version or decision conflicts with 409. A reviewer with an uploader grant cannot review their own asset.
+
+Implemented reviewer API routes are `GET /api/v1/review/queue`, `GET /api/v1/review/assets/:assetId`, `GET /api/v1/review/assets/:assetId/media/:variant`, `POST /api/v1/review/assets/:assetId/decision` and `POST /api/v1/review/assets/:assetId/remove`. Media accepts only `DISPLAY_GIF` or `POSTER_PNG`; cookies/role checks, exact derivative versions and checksums protect previews. Writes retain Origin/CSRF checks. Migration 0004 makes moderation decisions append-only; use the existing migration command when upgrading.
+
+Approval grants internal eligibility only at this checkpoint: public gallery/search/media routes remain absent. **B06 NOT STARTED.**

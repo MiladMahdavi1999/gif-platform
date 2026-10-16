@@ -277,7 +277,7 @@ export function createReviewRepository(connectionString: string) {
         if (action === 'APPROVE') await verify(values);
         const decision = (
           await client.query(
-            `INSERT INTO moderation_decisions(asset_id,reviewer_id,action,reason_code,reason_note,prior_state) VALUES($1,$2,$3,$4,$5,$6) RETURNING id`,
+            `INSERT INTO moderation_decisions(asset_id,reviewer_id,action,reason_code,reason_note,prior_state,decided_at) VALUES($1,$2,$3,$4,$5,$6,clock_timestamp()) RETURNING id`,
             [
               id,
               reviewerId,
@@ -314,7 +314,7 @@ export function createReviewRepository(connectionString: string) {
         );
         if (!updated.rowCount) throw conflict();
         await client.query(
-          `INSERT INTO audit_events(actor_user_id,asset_id,event_type,request_id,metadata) VALUES($1,$2,$3,$4,$5)`,
+          `INSERT INTO audit_events(actor_user_id,asset_id,event_type,request_id,metadata,created_at) VALUES($1,$2,$3,$4,$5,clock_timestamp())`,
           [
             reviewerId,
             id,

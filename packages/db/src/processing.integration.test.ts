@@ -725,37 +725,51 @@ it('worker S3 identity cannot change bucket policy, replace quarantine, delete p
     const object = (
       await pool.query('SELECT object_key FROM asset_variants LIMIT 1')
     ).rows[0].object_key;
-    for (const command of [
-      new PutBucketPolicyCommand({
-        Bucket: config.S3_DERIVATIVES_BUCKET,
-        Policy: JSON.stringify({
-          Version: '2012-10-17',
-          Statement: [
-            {
-              Effect: 'Allow',
-              Principal: '*',
-              Action: 's3:GetObject',
-              Resource: `arn:aws:s3:::${config.S3_DERIVATIVES_BUCKET}/*`,
-            },
-          ],
-        }),
-      }),
-      new PutObjectCommand({
-        Bucket: config.S3_QUARANTINE_BUCKET,
-        Key: 'quarantine/unsafe.gif',
-        Body: animatedGif(),
-      }),
-      new PutObjectCommand({
-        Bucket: config.S3_DERIVATIVES_BUCKET,
-        Key: 'outside-prefix.gif',
-        Body: animatedGif(),
-      }),
-      new DeleteObjectCommand({
-        Bucket: config.S3_DERIVATIVES_BUCKET,
-        Key: object,
-      }),
-    ])
-      await expect(limited.send(command)).rejects.toMatchObject({
+    const publicPolicy = JSON.stringify({
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Principal: '*',
+          Action: 's3:GetObject',
+          Resource: `arn:aws:s3:::${config.S3_DERIVATIVES_BUCKET}/*`,
+        },
+      ],
+    });
+    const requests = [
+      () =>
+        limited.send(
+          new PutBucketPolicyCommand({
+            Bucket: config.S3_DERIVATIVES_BUCKET,
+            Policy: publicPolicy,
+          }),
+        ),
+      () =>
+        limited.send(
+          new PutObjectCommand({
+            Bucket: config.S3_QUARANTINE_BUCKET,
+            Key: 'quarantine/unsafe.gif',
+            Body: animatedGif(),
+          }),
+        ),
+      () =>
+        limited.send(
+          new PutObjectCommand({
+            Bucket: config.S3_DERIVATIVES_BUCKET,
+            Key: 'outside-prefix.gif',
+            Body: animatedGif(),
+          }),
+        ),
+      () =>
+        limited.send(
+          new DeleteObjectCommand({
+            Bucket: config.S3_DERIVATIVES_BUCKET,
+            Key: object,
+          }),
+        ),
+    ];
+    for (const request of requests)
+      await expect(request()).rejects.toMatchObject({
         $metadata: { httpStatusCode: 403 },
       });
   } finally {

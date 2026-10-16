@@ -27,10 +27,14 @@ export function createProcessingStorage(config: StorageConfig) {
         { abortSignal: signal },
       );
       const body = response.Body;
+      const destroy = () =>
+        (body as { destroy?: () => void } | undefined)?.destroy?.();
+      signal.addEventListener('abort', destroy, { once: true });
       let file: FileHandle | undefined;
       let size = 0;
       const hash = createHash('sha256');
       try {
+        signal.throwIfAborted();
         file = await open(path, 'wx', 0o600);
         if (
           !body ||
@@ -48,10 +52,12 @@ export function createProcessingStorage(config: StorageConfig) {
           hash.update(data);
           await file.writeFile(data);
         }
+        signal.throwIfAborted();
         if (size !== source.size) throw new Error('SOURCE_INTEGRITY_MISMATCH');
         return hash.digest('hex');
       } finally {
-        (body as { destroy?: () => void } | undefined)?.destroy?.();
+        signal.removeEventListener('abort', destroy);
+        destroy();
         await file?.close();
       }
     },

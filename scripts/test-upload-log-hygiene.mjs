@@ -68,6 +68,23 @@ const receipt = await fetch(
 );
 if (receipt.status !== 202)
   throw new Error('Upload log verification receipt failed');
+const deadline = Date.now() + 30000;
+let processed = false;
+while (Date.now() < deadline) {
+  const status = await fetch(`${origin}/api/v1/me/assets/${intent.assetId}`, {
+    headers: { Cookie: cookie },
+  });
+  if (!status.ok) throw new Error('Private processing log receipt unavailable');
+  const value = await status.json();
+  if (value.states.processing === 'SUCCEEDED') {
+    processed = true;
+    break;
+  }
+  if (value.states.processing === 'FAILED_TERMINAL')
+    throw new Error('Private processing log fixture failed');
+  await new Promise((resolve) => setTimeout(resolve, 250));
+}
+if (!processed) throw new Error('Private processing log fixture timed out');
 const logout = await fetch(`${origin}/api/v1/auth/logout`, {
   method: 'POST',
   headers,
@@ -87,11 +104,17 @@ for (const value of [
   intent.form.fields['X-Amz-Signature'],
   process.env.S3_SECRET_ACCESS_KEY,
   process.env.DEV_UPLOADER_PASSWORD,
+  process.env.WORKER_DATABASE_URL,
+  process.env.S3_WORKER_ACCESS_KEY_ID,
+  process.env.S3_WORKER_SECRET_ACCESS_KEY,
+  intent.form.fields.key,
+  '/tmp/gif-job-',
+  'gif-sandbox-v1',
 ])
   if (!value || logs.includes(value))
     throw new Error(
       'Sensitive upload runtime value detected or fixture missing',
     );
 console.log(
-  'PASS: actual signed upload/completion logs exclude session, CSRF, policy, signature and passwords',
+  'PASS: actual upload/processed worker logs exclude sessions, CSRF, signatures, storage keys, temporary paths, decoder output and credentials',
 );

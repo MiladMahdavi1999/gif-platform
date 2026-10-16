@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { open } from 'node:fs/promises';
+import { open, type FileHandle } from 'node:fs/promises';
 import {
   GetObjectCommand,
   HeadObjectCommand,
@@ -27,10 +27,11 @@ export function createProcessingStorage(config: StorageConfig) {
         { abortSignal: signal },
       );
       const body = response.Body;
-      const file = await open(path, 'wx', 0o600);
+      let file: FileHandle | undefined;
       let size = 0;
       const hash = createHash('sha256');
       try {
+        file = await open(path, 'wx', 0o600);
         if (
           !body ||
           response.VersionId !== source.versionId ||
@@ -51,7 +52,7 @@ export function createProcessingStorage(config: StorageConfig) {
         return hash.digest('hex');
       } finally {
         (body as { destroy?: () => void } | undefined)?.destroy?.();
-        await file.close();
+        await file?.close();
       }
     },
     async putVerified(

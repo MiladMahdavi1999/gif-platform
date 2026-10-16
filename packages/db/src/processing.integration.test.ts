@@ -14,7 +14,7 @@ import {
 import { createProcessingStorage } from '@gif/storage';
 import { readWorkerConfig } from '@gif/config';
 import { processJob } from '../../../apps/worker/src/process-job.js';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { migrate } from './migrate.js';
 import { assertDevelopmentDatabase, seedDevelopment } from './dev.js';
 import { animatedGif } from '@gif/testing';
@@ -28,6 +28,8 @@ import {
   GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
+  PutBucketPolicyCommand,
+  DeleteObjectCommand,
   ListObjectVersionsCommand,
   DeleteObjectsCommand,
   DeleteBucketCommand,
@@ -88,9 +90,14 @@ const workerTarget = new URL(target);
 workerTarget.username = 'gif_processing_worker';
 workerTarget.password = 'local_only_b04_worker_password';
 const processing = createProcessingRepository(workerTarget.href, 3, 3);
-const outputStorage = createProcessingStorage(config);
-const workerConfig = readWorkerConfig({
+const workerStorageConfig = {
   ...config,
+  S3_ACCESS_KEY_ID: `b04-worker-${suffix}`,
+  S3_SECRET_ACCESS_KEY: randomBytes(24).toString('hex'),
+};
+const outputStorage = createProcessingStorage(workerStorageConfig);
+const workerConfig = readWorkerConfig({
+  ...workerStorageConfig,
   MAX_GIF_UPLOAD_BYTES: String(config.MAX_GIF_UPLOAD_BYTES),
   DATABASE_URL: workerTarget.href,
   PUBLIC_BASE_URL: 'http://localhost:8080',
@@ -156,6 +163,39 @@ beforeAll(async () => {
     [user.id],
   );
   await provisionPrivateStorage(config);
+  try {
+    execFileSync(
+      'docker',
+      [
+        'compose',
+        '--env-file',
+        '.env',
+        '-f',
+        'infra/compose.yaml',
+        'exec',
+        '-T',
+        '-e',
+        'APP_ENV=development',
+        '-e',
+        'ALLOW_DEV_DATABASE_COMMANDS=true',
+        '-e',
+        'S3_INTERNAL_ENDPOINT=http://localhost:9000',
+        '-e',
+        `S3_QUARANTINE_BUCKET=${config.S3_QUARANTINE_BUCKET}`,
+        '-e',
+        `S3_DERIVATIVES_BUCKET=${config.S3_DERIVATIVES_BUCKET}`,
+        '-e',
+        `S3_WORKER_ACCESS_KEY_ID=${workerStorageConfig.S3_ACCESS_KEY_ID}`,
+        '-e',
+        `S3_WORKER_SECRET_ACCESS_KEY=${workerStorageConfig.S3_SECRET_ACCESS_KEY}`,
+        'minio',
+        '/usr/local/bin/provision-worker',
+      ],
+      { stdio: 'pipe' },
+    );
+  } catch {
+    throw new Error('Local test worker storage identity provisioning failed');
+  }
   await app.ready();
   uploader = await login('uploader@local.test');
   other = await login('other@local.test');
@@ -676,5 +716,49 @@ it('restricted worker database identity cannot approve, publish, index, alter up
       });
   } finally {
     await restricted.end();
+  }
+});
+
+it('worker S3 identity cannot change bucket policy, replace quarantine, delete pinned outputs or write outside derivative prefix', async () => {
+  const limited = s3Client(workerStorageConfig);
+  try {
+    const object = (
+      await pool.query('SELECT object_key FROM asset_variants LIMIT 1')
+    ).rows[0].object_key;
+    for (const command of [
+      new PutBucketPolicyCommand({
+        Bucket: config.S3_DERIVATIVES_BUCKET,
+        Policy: JSON.stringify({
+          Version: '2012-10-17',
+          Statement: [
+            {
+              Effect: 'Allow',
+              Principal: '*',
+              Action: 's3:GetObject',
+              Resource: `arn:aws:s3:::${config.S3_DERIVATIVES_BUCKET}/*`,
+            },
+          ],
+        }),
+      }),
+      new PutObjectCommand({
+        Bucket: config.S3_QUARANTINE_BUCKET,
+        Key: 'quarantine/unsafe.gif',
+        Body: animatedGif(),
+      }),
+      new PutObjectCommand({
+        Bucket: config.S3_DERIVATIVES_BUCKET,
+        Key: 'outside-prefix.gif',
+        Body: animatedGif(),
+      }),
+      new DeleteObjectCommand({
+        Bucket: config.S3_DERIVATIVES_BUCKET,
+        Key: object,
+      }),
+    ])
+      await expect(limited.send(command)).rejects.toMatchObject({
+        $metadata: { httpStatusCode: 403 },
+      });
+  } finally {
+    limited.destroy();
   }
 });

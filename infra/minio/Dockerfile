@@ -10,6 +10,10 @@ RUN --mount=type=secret,id=proxy_ca \
 RUN --mount=type=secret,id=proxy_ca \
     if [ -f /run/secrets/proxy_ca ]; then export SSL_CERT_FILE=/run/secrets/proxy_ca; fi; \
     CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/minio .
+COPY infra/minio/provision-worker.go /provision-worker.go
+RUN --mount=type=secret,id=proxy_ca \
+    if [ -f /run/secrets/proxy_ca ]; then export SSL_CERT_FILE=/run/secrets/proxy_ca; fi; \
+    CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/provision-worker /provision-worker.go
 COPY infra/minio/health.go /health.go
 RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/health /health.go && \
     mkdir -p /data /scratch-tmp && chown 1000:1000 /data && chmod 1777 /scratch-tmp
@@ -17,6 +21,7 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/health /health.go 
 FROM scratch
 COPY --from=build /out/minio /usr/local/bin/minio
 COPY --from=build /out/health /usr/local/bin/health
+COPY --from=build /out/provision-worker /usr/local/bin/provision-worker
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /src/LICENSE /LICENSE
 COPY --from=build --chown=1000:1000 /data /data

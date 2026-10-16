@@ -149,8 +149,8 @@ test('browser retries completion after lost response without reuploading or dupl
     'Upload not confirmed',
   );
   await page.getByRole('button', { name: 'Retry upload', exact: true }).click();
-  await expect(page.getByRole('main').getByRole('status')).toHaveText(
-    'Received privately. Processing queued; not processed or published.',
+  await expect(page.getByRole('main').getByRole('status')).toContainText(
+    'Received privately.',
   );
   expect(posts).toBe(1);
 });

@@ -141,7 +141,9 @@ export function UploadForm() {
       const result = uploadCompletionSchema.parse(await response.json());
       setReceipt(result.assetId);
       setStatus(
-        'Received privately. Processing queued; not processed or published.',
+        result.processing === 'QUEUED'
+          ? 'Received privately. Processing queued; not processed or published.'
+          : `Received privately. Processing status: ${result.processing}. View your receipt for current private status; not published.`,
       );
     } catch (cause) {
       setError(

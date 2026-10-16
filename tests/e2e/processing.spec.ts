@@ -102,9 +102,13 @@ test('owner sees real terminal decode failure after refresh with no private URL 
   await expect(page.getByText('FAILED_TERMINAL', { exact: true })).toBeVisible({
     timeout: 30000,
   });
-  await expect(page.getByRole('alert')).toHaveText('MEDIA_NOT_ANIMATED');
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText(
+    'MEDIA_NOT_ANIMATED',
+  );
   await page.reload();
-  await expect(page.getByRole('alert')).toHaveText('MEDIA_NOT_ANIMATED');
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText(
+    'MEDIA_NOT_ANIMATED',
+  );
   await expect(
     page.getByText(
       'Processing failed. This file cannot be processed. Start a new upload; nothing is published.',

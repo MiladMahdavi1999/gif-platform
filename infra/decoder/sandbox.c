@@ -39,6 +39,7 @@ __attribute__((constructor)) static void isolate(void) {
     BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_KILL_PROCESS),
     DENY(open), DENY(creat), DENY(fork), DENY(vfork),
     DENY(unlink), DENY(rename), DENY(mkdir), DENY(rmdir), DENY(link), DENY(symlink),
+    DENY(truncate), DENY(chmod), DENY(chown), DENY(lchown), DENY(mknod), DENY(utime), DENY(utimes),
 #endif
     BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_clone, 0, 4),
     BPF_STMT(BPF_LD|BPF_W|BPF_ABS, offsetof(struct seccomp_data, args[0])),
@@ -53,6 +54,8 @@ __attribute__((constructor)) static void isolate(void) {
     DENY(accept), DENY(accept4), DENY(sendto), DENY(sendmsg), DENY(recvmsg),
     DENY(execve), DENY(execveat), DENY(ptrace), DENY(process_vm_readv), DENY(process_vm_writev),
     DENY(mount), DENY(umount2), DENY(unshare), DENY(setns), DENY(bpf), DENY(io_uring_setup),
+    DENY(mknodat), DENY(fchmodat), DENY(fchownat), DENY(utimensat),
+    DENY(setxattr), DENY(lsetxattr), DENY(removexattr), DENY(lremovexattr),
     DENY(unlinkat), DENY(renameat), DENY(renameat2), DENY(mkdirat), DENY(linkat), DENY(symlinkat),
     DENY(kill), DENY(tkill), DENY(tgkill),
     BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW)

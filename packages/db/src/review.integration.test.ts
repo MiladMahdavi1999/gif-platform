@@ -358,6 +358,29 @@ describe('B05 real PostgreSQL/MinIO/processed GIF review', () => {
     const summary = await detail(id);
     expect(summary.statusCode).toBe(200);
     expect(summary.json().previews).toHaveLength(2);
+    // Safe re-encoding can grow a tiny upload; preview budgets use the output limit.
+    const descriptor = await review.repository.preview(id, 'DISPLAY_GIF');
+    const independentLimit = createReviewStorage({
+      ...config,
+      MAX_GIF_UPLOAD_BYTES: 1,
+      MAX_GIF_OUTPUT_BYTES: 20971520,
+    });
+    const tooSmall = createReviewStorage({
+      ...config,
+      MAX_GIF_OUTPUT_BYTES: 1,
+    });
+    try {
+      expect((await independentLimit.read(descriptor)).length).toBe(
+        descriptor.sizeBytes,
+      );
+      await expect(tooSmall.read(descriptor)).rejects.toMatchObject({
+        status: 409,
+        code: 'DERIVATIVES_UNVERIFIED',
+      });
+    } finally {
+      independentLimit.close();
+      tooSmall.close();
+    }
     expect(summary.body).not.toMatch(
       /objectKey|objectVersion|quarantine\/|https?:\/\//,
     );

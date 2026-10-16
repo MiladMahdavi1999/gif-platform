@@ -97,6 +97,8 @@ it('bounds upload policies and requires separate buckets and canonical endpoints
     { MEDIA_UPLOAD_POLICY_TTL_SECONDS: '3601' },
     { MAX_GIF_UPLOAD_BYTES: '0' },
     { MAX_GIF_UPLOAD_BYTES: '20971521' },
+    { MAX_GIF_OUTPUT_BYTES: '0' },
+    { MAX_GIF_OUTPUT_BYTES: '20971521' },
     {
       S3_QUARANTINE_BUCKET: 'same-bucket',
       S3_DERIVATIVES_BUCKET: 'same-bucket',
@@ -106,4 +108,11 @@ it('bounds upload policies and requires separate buckets and canonical endpoints
     expect(() => readApiConfig({ ...valid, ...settings })).toThrow(
       /Invalid configuration/,
     );
+  const config = readApiConfig({
+    ...valid,
+    MAX_GIF_UPLOAD_BYTES: '100',
+    MAX_GIF_OUTPUT_BYTES: '1024',
+  });
+  expect(config.MAX_GIF_OUTPUT_BYTES).toBe(1024);
+  expect(config.MAX_GIF_UPLOAD_BYTES).toBe(100);
 });

@@ -59,6 +59,12 @@ export const apiConfigSchema = common.extend({
     .min(1)
     .max(20971520)
     .default(20971520),
+  MAX_GIF_OUTPUT_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(20971520)
+    .default(20971520),
 });
 
 export type ApiConfig = z.infer<typeof apiConfigSchema>;
@@ -115,12 +121,6 @@ export const workerConfigSchema = apiConfigSchema.extend({
   MAX_GIF_DIMENSION: z.coerce.number().int().min(1).max(8192).default(4096),
   MAX_GIF_DURATION_SECONDS: z.coerce.number().positive().max(30).default(30),
   MAX_GIF_FRAMES: z.coerce.number().int().min(2).max(1000).default(300),
-  MAX_GIF_OUTPUT_BYTES: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(20971520)
-    .default(20971520),
   MEDIA_EXECUTION_TIMEOUT_MS: z.coerce
     .number()
     .int()

@@ -90,6 +90,7 @@ services:
       S3_DERIVATIVES_BUCKET: ${S3_DERIVATIVES_BUCKET:-gif-processed}
       MEDIA_UPLOAD_POLICY_TTL_SECONDS: ${MEDIA_UPLOAD_POLICY_TTL_SECONDS:-600}
       MAX_GIF_UPLOAD_BYTES: ${MAX_GIF_UPLOAD_BYTES:-20971520}
+      MAX_GIF_OUTPUT_BYTES: ${MAX_GIF_OUTPUT_BYTES:-20971520}
     depends_on:
       db: { condition: service_healthy }
       minio: { condition: service_healthy }

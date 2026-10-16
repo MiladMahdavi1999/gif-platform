@@ -12,7 +12,9 @@ export class ReviewMediaFault extends Error {
   }
 }
 /** Derivative bucket only: no source bucket, arbitrary key, redirect or signed URL. */
-export function createReviewStorage(config: StorageConfig) {
+export function createReviewStorage(
+  config: StorageConfig & { MAX_GIF_OUTPUT_BYTES?: number },
+) {
   const client = s3Client(config);
   function validate(v: ReviewVariant) {
     if (
@@ -21,7 +23,7 @@ export function createReviewStorage(config: StorageConfig) {
       ) ||
       !v.objectVersionId ||
       v.objectVersionId === 'null' ||
-      v.sizeBytes > config.MAX_GIF_UPLOAD_BYTES ||
+      v.sizeBytes > (config.MAX_GIF_OUTPUT_BYTES ?? 20971520) ||
       v.sizeBytes < 1
     )
       throw new ReviewMediaFault(409, 'DERIVATIVES_UNVERIFIED');

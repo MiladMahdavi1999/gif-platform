@@ -43,7 +43,7 @@ assertDevelopmentDatabase({
 if (!source.pathname.endsWith('_test'))
   throw new Error('Integration database must end in _test');
 const suffix = randomUUID().replaceAll('-', '');
-const name = `gif_b03_${suffix}_test`;
+const name = `gif_platform_b03_${suffix}_test`;
 const target = new URL(source);
 target.pathname = `/${name}`;
 const config: StorageConfig = {

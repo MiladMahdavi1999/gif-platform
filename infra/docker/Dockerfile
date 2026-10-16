@@ -18,5 +18,6 @@ FROM node:24.19.0-bookworm-slim AS runtime
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 COPY --from=build --chown=node:node /app /app
+COPY --chown=node:node scripts/provision-storage.mjs scripts/provision-storage.mjs
 USER node
 CMD ["node", "apps/api/dist/main.js"]

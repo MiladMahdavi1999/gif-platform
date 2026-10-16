@@ -29,3 +29,4 @@ export function createDatabaseProbe(connectionString: string) {
   };
 }
 export * from './auth.js';
+export * from './uploads.js';

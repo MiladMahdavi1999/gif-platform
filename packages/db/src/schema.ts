@@ -204,6 +204,7 @@ export const uploadSessions = pgTable(
     claimedSizeBytes: bigint('claimed_size_bytes', { mode: 'bigint' }),
     receivedSizeBytes: bigint('received_size_bytes', { mode: 'bigint' }),
     receivedEtag: text('received_etag'),
+    receivedVersionId: text('received_version_id'),
     createdAt: time('created_at'),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     completedAt: timestamp('completed_at', { withTimezone: true }),

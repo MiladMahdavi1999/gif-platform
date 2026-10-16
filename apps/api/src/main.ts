@@ -1,16 +1,29 @@
 import { readApiConfig } from '@gif/config';
-import { createAuthRepository, createDatabaseProbe } from '@gif/db';
-import { checkObjectStore } from '@gif/storage';
+import {
+  createAuthRepository,
+  createDatabaseProbe,
+  createUploadRepository,
+} from '@gif/db';
+import {
+  checkObjectStore,
+  checkUploadStorage,
+  createUploadStorage,
+} from '@gif/storage';
 import { createApp } from './app.js';
 
 async function main() {
   const config = readApiConfig(process.env);
   const database = createDatabaseProbe(config.DATABASE_URL);
   const auth = createAuthRepository(config.DATABASE_URL);
+  const uploads = createUploadRepository(config.DATABASE_URL);
+  const storage = createUploadStorage(config);
   const app = createApp(
     {
       database: database.check,
-      storage: () => checkObjectStore(config.S3_INTERNAL_ENDPOINT),
+      storage: async () => {
+        await checkObjectStore(config.S3_INTERNAL_ENDPOINT);
+        await checkUploadStorage(config);
+      },
     },
     true,
     {
@@ -20,9 +33,17 @@ async function main() {
       ttlSeconds: config.SESSION_TTL_SECONDS,
       secure: new URL(config.PUBLIC_BASE_URL).protocol === 'https:',
     },
+    {
+      repository: uploads.repository,
+      storage: storage.storage,
+      ttlSeconds: config.MEDIA_UPLOAD_POLICY_TTL_SECONDS,
+      maxBytes: config.MAX_GIF_UPLOAD_BYTES,
+    },
   );
   app.addHook('onClose', database.close);
   app.addHook('onClose', auth.close);
+  app.addHook('onClose', uploads.close);
+  app.addHook('onClose', async () => storage.close());
   const shutdown = async () => {
     const deadline = setTimeout(() => process.exit(1), 8000);
     deadline.unref();

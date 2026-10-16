@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { HealthIndicator } from './health-indicator';
 
 export default function Home() {
@@ -8,7 +9,10 @@ export default function Home() {
       <p>Environment status</p>
       <HealthIndicator />
       <p>
-        <a href="/login">Sign in</a> · <a href="/review">Review access</a>
+        <Link href="/login">Sign in</Link> ·{' '}
+        <Link href="/studio/upload">Upload GIF</Link> ·{' '}
+        <Link href="/studio/assets">My receipts</Link> ·{' '}
+        <Link href="/review">Review access</Link>
       </p>
     </main>
   );

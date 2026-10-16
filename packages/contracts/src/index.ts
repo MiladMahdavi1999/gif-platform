@@ -1,4 +1,13 @@
 import { z } from 'zod';
+import {
+  uploadRequestSchema,
+  completeRequestSchema,
+  uploadIntentSchema,
+  uploadCompletionSchema,
+  ownerAssetSchema,
+  ownerAssetsSchema,
+} from './uploads.js';
+export * from './uploads.js';
 
 export const readinessSchema = z.object({
   status: z.enum(['ready', 'not_ready']),
@@ -35,7 +44,7 @@ export const sessionResponseSchema = z.discriminatedUnion('authenticated', [
 export type AuthUser = z.infer<typeof authUserSchema>;
 export type SessionResponse = z.infer<typeof sessionResponseSchema>;
 
-// Generated OpenAPI stays limited to the implemented B00/B02 HTTP surface.
+// Generated OpenAPI describes only implemented HTTP routes.
 export function createOpenApiDocument() {
   const json = (schema: z.ZodType) => ({
     'application/json': { schema: z.toJSONSchema(schema, { io: 'input' }) },
@@ -52,14 +61,14 @@ export function createOpenApiDocument() {
     }),
   });
   const errors = Object.fromEntries(
-    [400, 401, 403, 415, 429, 500].map((code) => [
+    [400, 401, 403, 404, 409, 410, 413, 415, 429, 500, 503].map((code) => [
       code,
       response('Request rejected', error),
     ]),
   );
   return {
     openapi: '3.1.0',
-    info: { title: 'GIF Platform implemented API', version: '0.2.0' },
+    info: { title: 'GIF Platform implemented API', version: '0.3.0' },
     components: {
       securitySchemes: {
         sessionCookie: {
@@ -72,6 +81,96 @@ export function createOpenApiDocument() {
       },
     },
     paths: {
+      '/api/v1/uploads': {
+        post: {
+          security: [{ sessionCookie: [] }],
+          description:
+            'UPLOADER only. Private quarantine intent; same owner/key and normalized metadata reuse one asset until expiry. Conflicting metadata returns 409 IDEMPOTENCY_CONFLICT. No file decoding or publication.',
+          parameters: ['Origin', 'X-CSRF-Token', 'Idempotency-Key'].map(
+            (name) => ({
+              in: 'header',
+              name,
+              required: true,
+              schema: { type: 'string' },
+            }),
+          ),
+          requestBody: { required: true, content: json(uploadRequestSchema) },
+          responses: {
+            ...errors,
+            201: response(
+              'Private upload intent (including replay)',
+              uploadIntentSchema,
+            ),
+          },
+        },
+      },
+      '/api/v1/uploads/{uploadId}/complete': {
+        post: {
+          security: [{ sessionCookie: [] }],
+          description:
+            'Owner with UPLOADER grant and CSRF. Real versioned S3 HEAD; atomically persists receipt, states, READY job and audit. Idempotent replay returns current receipt even after deadline. Unreceived expired session returns 410.',
+          parameters: [
+            {
+              in: 'path',
+              name: 'uploadId',
+              required: true,
+              schema: { type: 'string', format: 'uuid' },
+            },
+            ...['Origin', 'X-CSRF-Token'].map((name) => ({
+              in: 'header',
+              name,
+              required: true,
+              schema: { type: 'string' },
+            })),
+          ],
+          requestBody: { required: true, content: json(completeRequestSchema) },
+          responses: {
+            ...errors,
+            202: response(
+              'Received privately; processing queued, not processed or published',
+              uploadCompletionSchema,
+            ),
+          },
+        },
+      },
+      '/api/v1/me/assets': {
+        get: {
+          security: [{ sessionCookie: [] }],
+          description:
+            'Owner receipts only, newest first; UUID keyset cursor, 24 rows. No media URLs or quarantine metadata.',
+          parameters: [
+            {
+              in: 'query',
+              name: 'cursor',
+              schema: { type: 'string', format: 'uuid' },
+            },
+          ],
+          responses: {
+            ...errors,
+            200: response('Private owner receipts', ownerAssetsSchema),
+          },
+        },
+      },
+      '/api/v1/me/assets/{assetId}': {
+        get: {
+          security: [{ sessionCookie: [] }],
+          parameters: [
+            {
+              in: 'path',
+              name: 'assetId',
+              required: true,
+              schema: { type: 'string', format: 'uuid' },
+            },
+          ],
+          responses: {
+            ...errors,
+            200: response(
+              'Private owner status; other owners receive 404',
+              ownerAssetSchema,
+            ),
+          },
+        },
+      },
       '/api/v1/health/live': {
         get: {
           responses: {

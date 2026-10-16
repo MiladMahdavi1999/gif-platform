@@ -1,6 +1,6 @@
 {
   "openapi": "3.1.0",
-  "info": { "title": "GIF Platform implemented API", "version": "0.2.0" },
+  "info": { "title": "GIF Platform implemented API", "version": "0.3.0" },
   "components": {
     "securitySchemes": {
       "sessionCookie": {
@@ -12,6 +12,1491 @@
     }
   },
   "paths": {
+    "/api/v1/uploads": {
+      "post": {
+        "security": [{ "sessionCookie": [] }],
+        "description": "UPLOADER only. Private quarantine intent; same owner/key and normalized metadata reuse one asset until expiry. Conflicting metadata returns 409 IDEMPOTENCY_CONFLICT. No file decoding or publication.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "kind": { "type": "string", "const": "GIF" },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "tags": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    }
+                  },
+                  "rightsAttested": { "type": "boolean", "const": true },
+                  "rightsAttestationVersion": {
+                    "type": "string",
+                    "const": "v1"
+                  },
+                  "claimedSizeBytes": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "kind",
+                  "title",
+                  "tags",
+                  "rightsAttested",
+                  "rightsAttestationVersion"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Private upload intent (including replay)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "assetId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "uploadId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "method": { "type": "string", "const": "POST" },
+                    "form": {
+                      "type": "object",
+                      "properties": {
+                        "url": { "type": "string", "format": "uri" },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": { "type": "string" },
+                          "additionalProperties": { "type": "string" }
+                        }
+                      },
+                      "required": ["url", "fields"]
+                    },
+                    "state": {
+                      "type": "object",
+                      "properties": {
+                        "upload": {
+                          "type": "string",
+                          "enum": ["INTENT", "RECEIVED", "EXPIRED", "FAILED"]
+                        },
+                        "processing": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_STARTED",
+                            "QUEUED",
+                            "RUNNING",
+                            "SUCCEEDED",
+                            "FAILED_RETRYABLE",
+                            "FAILED_TERMINAL"
+                          ]
+                        }
+                      },
+                      "required": ["upload", "processing"]
+                    }
+                  },
+                  "required": [
+                    "assetId",
+                    "uploadId",
+                    "expiresAt",
+                    "method",
+                    "form",
+                    "state"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/uploads/{uploadId}/complete": {
+      "post": {
+        "security": [{ "sessionCookie": [] }],
+        "description": "Owner with UPLOADER grant and CSRF. Real versioned S3 HEAD; atomically persists receipt, states, READY job and audit. Idempotent replay returns current receipt even after deadline. Unreceived expired session returns 410.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uploadId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Received privately; processing queued, not processed or published",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "assetId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "upload": {
+                      "type": "string",
+                      "enum": ["INTENT", "RECEIVED", "EXPIRED", "FAILED"]
+                    },
+                    "processing": {
+                      "type": "string",
+                      "enum": [
+                        "NOT_STARTED",
+                        "QUEUED",
+                        "RUNNING",
+                        "SUCCEEDED",
+                        "FAILED_RETRYABLE",
+                        "FAILED_TERMINAL"
+                      ]
+                    }
+                  },
+                  "required": ["assetId", "upload", "processing"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/assets": {
+      "get": {
+        "security": [{ "sessionCookie": [] }],
+        "description": "Owner receipts only, newest first; UUID keyset cursor, 24 rows. No media URLs or quarantine metadata.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Private owner receipts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "title": { "type": "string" },
+                          "tags": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                          },
+                          "states": {
+                            "type": "object",
+                            "properties": {
+                              "upload": {
+                                "type": "string",
+                                "enum": [
+                                  "INTENT",
+                                  "RECEIVED",
+                                  "EXPIRED",
+                                  "FAILED"
+                                ]
+                              },
+                              "processing": {
+                                "type": "string",
+                                "enum": [
+                                  "NOT_STARTED",
+                                  "QUEUED",
+                                  "RUNNING",
+                                  "SUCCEEDED",
+                                  "FAILED_RETRYABLE",
+                                  "FAILED_TERMINAL"
+                                ]
+                              },
+                              "visibility": {
+                                "type": "string",
+                                "enum": ["PRIVATE", "PUBLIC", "RESTRICTED"]
+                              },
+                              "searchEligibility": {
+                                "type": "string",
+                                "enum": ["INELIGIBLE", "ELIGIBLE"]
+                              },
+                              "indexing": {
+                                "type": "string",
+                                "enum": ["NOT_INDEXED", "INDEXED", "STALE"]
+                              },
+                              "apiAvailability": {
+                                "type": "string",
+                                "enum": ["BLOCKED", "ENABLED"]
+                              },
+                              "deliveryReadiness": {
+                                "type": "string",
+                                "enum": ["NOT_READY", "READY", "DEGRADED"]
+                              },
+                              "moderation": {
+                                "type": "string",
+                                "enum": [
+                                  "NOT_REQUESTED",
+                                  "PENDING",
+                                  "APPROVED",
+                                  "REJECTED",
+                                  "REMOVED"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "upload",
+                              "processing",
+                              "visibility",
+                              "searchEligibility",
+                              "indexing",
+                              "apiAvailability",
+                              "deliveryReadiness",
+                              "moderation"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "variantsReady": { "type": "boolean" },
+                          "rowVersion": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "errorCode": { "type": "string" },
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        },
+                        "required": [
+                          "title",
+                          "tags",
+                          "states",
+                          "createdAt",
+                          "variantsReady",
+                          "rowVersion",
+                          "id"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "required": ["items"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/assets/{assetId}": {
+      "get": {
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assetId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Private owner status; other owners receive 404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "assetId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "title": { "type": "string" },
+                    "tags": { "type": "array", "items": { "type": "string" } },
+                    "states": {
+                      "type": "object",
+                      "properties": {
+                        "upload": {
+                          "type": "string",
+                          "enum": ["INTENT", "RECEIVED", "EXPIRED", "FAILED"]
+                        },
+                        "processing": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_STARTED",
+                            "QUEUED",
+                            "RUNNING",
+                            "SUCCEEDED",
+                            "FAILED_RETRYABLE",
+                            "FAILED_TERMINAL"
+                          ]
+                        },
+                        "visibility": {
+                          "type": "string",
+                          "enum": ["PRIVATE", "PUBLIC", "RESTRICTED"]
+                        },
+                        "searchEligibility": {
+                          "type": "string",
+                          "enum": ["INELIGIBLE", "ELIGIBLE"]
+                        },
+                        "indexing": {
+                          "type": "string",
+                          "enum": ["NOT_INDEXED", "INDEXED", "STALE"]
+                        },
+                        "apiAvailability": {
+                          "type": "string",
+                          "enum": ["BLOCKED", "ENABLED"]
+                        },
+                        "deliveryReadiness": {
+                          "type": "string",
+                          "enum": ["NOT_READY", "READY", "DEGRADED"]
+                        },
+                        "moderation": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_REQUESTED",
+                            "PENDING",
+                            "APPROVED",
+                            "REJECTED",
+                            "REMOVED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "upload",
+                        "processing",
+                        "visibility",
+                        "searchEligibility",
+                        "indexing",
+                        "apiAvailability",
+                        "deliveryReadiness",
+                        "moderation"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "variantsReady": { "type": "boolean" },
+                    "rowVersion": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "errorCode": { "type": "string" }
+                  },
+                  "required": [
+                    "assetId",
+                    "title",
+                    "tags",
+                    "states",
+                    "createdAt",
+                    "variantsReady",
+                    "rowVersion"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/health/live": {
       "get": {
         "responses": {
@@ -243,6 +1728,98 @@
               }
             }
           },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
           "415": {
             "description": "Request rejected",
             "content": {
@@ -290,6 +1867,29 @@
             }
           },
           "500": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
             "description": "Request rejected",
             "content": {
               "application/json": {
@@ -484,6 +2084,98 @@
               }
             }
           },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
           "415": {
             "description": "Request rejected",
             "content": {
@@ -531,6 +2223,29 @@
             }
           },
           "500": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "503": {
             "description": "Request rejected",
             "content": {
               "application/json": {

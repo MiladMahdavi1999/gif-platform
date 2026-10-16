@@ -59,6 +59,7 @@ jobs:
       - run: pnpm test:e2e
       - run: node scripts/test-auth-log-hygiene.mjs
       - run: node scripts/test-upload-log-hygiene.mjs
+      - run: node scripts/test-review-log-hygiene.mjs
       - run: node scripts/test-dependency-failures.mjs
       - run: node scripts/test-local-lifecycle.mjs --confirm=gif_platform
       - run: pnpm db:migrate

@@ -81,11 +81,14 @@ test('owner polls truthful pending then processed private status after real work
   expect(JSON.stringify(receipt)).not.toMatch(
     /objectKey|objectVersion|quarantine\/|https?:\/\//,
   );
-  for (const path of [
-    `/media/${id}/display.gif`,
-    `/media/${id}/poster.png`,
-    '/api/v1/public/gifs',
-  ])
+  const publicList = await page.request.get('/api/v1/public/gifs');
+  expect(publicList.status()).toBe(200);
+  expect(
+    (await publicList.json()).items.some(
+      (item: { id: string }) => item.id === id,
+    ),
+  ).toBe(false);
+  for (const path of [`/media/${id}/display.gif`, `/media/${id}/poster.png`])
     expect((await page.request.get(path)).status()).toBe(404);
   await page.screenshot({ path: 'test-results/b04-success-private.png' });
 });

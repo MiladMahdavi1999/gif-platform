@@ -4,12 +4,13 @@ import { beforeAll, afterAll, describe, it, expect } from 'vitest';
 import { createApp } from '../../../apps/api/src/app.js';
 import { LoginLimiter } from '../../../apps/api/src/auth.js';
 import { createAuthRepository } from './auth.js';
-import { createUploadRepository } from '@gif/db';
+import { createUploadRepository, createPublicRepository } from '@gif/db';
 import { migrate } from './migrate.js';
 import { assertDevelopmentDatabase, seedDevelopment } from './dev.js';
 import { animatedGif } from '@gif/testing';
 import {
   createUploadStorage,
+  createPublicStorage,
   provisionPrivateStorage,
   s3Client,
   type StorageConfig,
@@ -77,6 +78,11 @@ const storage = createUploadStorage(config);
 const s3 = s3Client(config);
 const origin = 'http://localhost:8080';
 const password = randomBytes(24).toString('base64url');
+const publicRead = createPublicRepository(
+  target.href,
+  'regression_public_cursor_key_at_least_32_bytes',
+);
+const publicStorage = createPublicStorage(config);
 const app = createApp(
   { database: async () => {}, storage: async () => {} },
   false,
@@ -93,6 +99,12 @@ const app = createApp(
     storage: storage.storage,
     ttlSeconds: 600,
     maxBytes: config.MAX_GIF_UPLOAD_BYTES,
+  },
+  undefined,
+  {
+    repository: publicRead.repository,
+    storage: publicStorage,
+    cacheSeconds: 30,
   },
 );
 let created = false;
@@ -136,6 +148,8 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await app.close();
+  await publicRead.close();
+  publicStorage.close();
   await auth.close();
   await uploads.close();
   storage.close();
@@ -542,8 +556,14 @@ describe('B03 real PostgreSQL + MinIO private upload', () => {
     expect(JSON.stringify(value).includes(config.S3_SECRET_ACCESS_KEY)).toBe(
       false,
     );
+    const publicList = await app.inject('/api/v1/public/gifs');
+    expect(publicList.statusCode).toBe(200);
+    expect(
+      publicList
+        .json()
+        .items.some((item: { id: string }) => item.id === value.assetId),
+    ).toBe(false);
     for (const path of [
-      '/api/v1/public/gifs',
       `/api/v1/public/gifs/${value.assetId}`,
       `/media/${value.assetId}/display.gif`,
       `/media/${value.assetId}/original.gif`,

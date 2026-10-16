@@ -6,6 +6,7 @@ import { LoginLimiter } from '../../../apps/api/src/auth.js';
 import {
   createAuthRepository,
   createUploadRepository,
+  createPublicRepository,
   createProcessingRepository,
   createReviewRepository,
 } from '@gif/db';
@@ -13,6 +14,7 @@ import {
   createProcessingStorage,
   createReviewStorage,
   createUploadStorage,
+  createPublicStorage,
   provisionPrivateStorage,
   s3Client,
   type StorageConfig,
@@ -92,6 +94,11 @@ const workerConfig = readWorkerConfig({
 } as unknown as NodeJS.ProcessEnv);
 const origin = 'http://localhost:8080';
 const password = randomBytes(24).toString('base64url');
+const publicRead = createPublicRepository(
+  target.href,
+  'regression_public_cursor_key_at_least_32_bytes',
+);
+const publicStorage = createPublicStorage(config);
 const app = createApp(
   { database: async () => {}, storage: async () => {} },
   false,
@@ -110,6 +117,11 @@ const app = createApp(
     maxBytes: 1024,
   },
   { repository: review.repository, storage: reviewStorage },
+  {
+    repository: publicRead.repository,
+    storage: publicStorage,
+    cacheSeconds: 30,
+  },
 );
 type Account = { cookie: string; csrf: string; id: string };
 let uploader: Account, reviewer: Account, second: Account;
@@ -164,6 +176,8 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await app.close();
+  await publicRead.close();
+  publicStorage.close();
   await auth.close();
   await uploads.close();
   await processing.close();
@@ -479,12 +493,16 @@ describe('B05 real PostgreSQL/MinIO/processed GIF review', () => {
       priorState: 'PENDING',
     });
     expect(d.audit.at(-1).decisionId).toBe(d.decisions[0].id);
-    for (const path of [
-      '/api/v1/public/gifs',
-      `/media/${id}/display.gif`,
-      `/media/${id}/poster.png`,
-    ])
-      expect((await app.inject(path)).statusCode).toBe(404);
+    const publicList = await app.inject('/api/v1/public/gifs');
+    expect(publicList.statusCode).toBe(200);
+    expect(
+      publicList.json().items.some((item: { id: string }) => item.id === id),
+    ).toBe(true);
+    expect((await app.inject(`/api/v1/public/gifs/${id}`)).statusCode).toBe(
+      200,
+    );
+    for (const path of [`/media/${id}/display.gif`, `/media/${id}/poster.png`])
+      expect((await app.inject(path)).statusCode).toBe(200);
   });
   it('exact concurrent and sequential approval replay creates one decision/audit; changed semantics/actor/version conflict', async () => {
     const id = await fixture();

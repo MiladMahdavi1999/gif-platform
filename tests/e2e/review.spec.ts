@@ -180,10 +180,14 @@ test('reviewer inspects private poster/GIF, approves then removes with retained 
       indexing: 'NOT_INDEXED',
       apiAvailability: 'BLOCKED',
     });
-    for (const path of [
-      '/api/v1/public/gifs',
-      `/media/${asset.id}/display.gif`,
-    ])
+    const publicList = await anonymous.request.get('/api/v1/public/gifs');
+    expect(publicList.status()).toBe(200);
+    expect(
+      (await publicList.json()).items.some(
+        (item: { id: string }) => item.id === asset.id,
+      ),
+    ).toBe(false);
+    for (const path of [`/media/${asset.id}/display.gif`])
       expect((await anonymous.request.get(path)).status()).toBe(404);
     await reviewPage.screenshot({
       path: 'test-results/b05-removed-audit.png',

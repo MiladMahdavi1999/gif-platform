@@ -6,6 +6,7 @@ import { LoginLimiter } from '../../../apps/api/src/auth.js';
 import { createAuthRepository } from './auth.js';
 import {
   createUploadRepository,
+  createPublicRepository,
   createProcessingRepository,
   StaleLease,
   provisionDevelopmentWorker,
@@ -20,6 +21,7 @@ import { assertDevelopmentDatabase, seedDevelopment } from './dev.js';
 import { animatedGif } from '@gif/testing';
 import {
   createUploadStorage,
+  createPublicStorage,
   provisionPrivateStorage,
   s3Client,
   type StorageConfig,
@@ -105,6 +107,11 @@ const workerConfig = readWorkerConfig({
 } as unknown as NodeJS.ProcessEnv);
 const origin = 'http://localhost:8080';
 const password = randomBytes(24).toString('base64url');
+const publicRead = createPublicRepository(
+  target.href,
+  'regression_public_cursor_key_at_least_32_bytes',
+);
+const publicStorage = createPublicStorage(config);
 const app = createApp(
   { database: async () => {}, storage: async () => {} },
   false,
@@ -121,6 +128,12 @@ const app = createApp(
     storage: storage.storage,
     ttlSeconds: 600,
     maxBytes: config.MAX_GIF_UPLOAD_BYTES,
+  },
+  undefined,
+  {
+    repository: publicRead.repository,
+    storage: publicStorage,
+    cacheSeconds: 30,
   },
 );
 let created = false;
@@ -202,6 +215,8 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await app.close();
+  await publicRead.close();
+  publicStorage.close();
   await auth.close();
   await uploads.close();
   await processing.close();
@@ -469,10 +484,16 @@ describe('B04 real PostgreSQL, MinIO, FFmpeg and process recovery', () => {
     expect(
       (await app.inject(`/api/v1/me/assets/${value.assetId}`)).statusCode,
     ).toBe(401);
+    const publicList = await app.inject('/api/v1/public/gifs');
+    expect(publicList.statusCode).toBe(200);
+    expect(
+      publicList
+        .json()
+        .items.some((item: { id: string }) => item.id === value.assetId),
+    ).toBe(false);
     for (const path of [
       `/media/${value.assetId}/display.gif`,
       `/media/${value.assetId}/poster.png`,
-      '/api/v1/public/gifs',
     ])
       expect((await app.inject(path)).statusCode).toBe(404);
     expect(

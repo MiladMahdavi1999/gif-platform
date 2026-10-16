@@ -1,7 +1,6 @@
 # B02 — Session login, CSRF and role authorization
 
-Task: B02 only. B03 NOT STARTED. Status: implementation complete; local verification passed, full-stack
-CI evidence being collected. No merge is authorized or performed.
+Task: B02 only. B03 NOT STARTED. Status: verified in local checks and the full CI stack; ready for human review. No merge is authorized or performed.
 
 ## Starting point and scope
 
@@ -105,7 +104,42 @@ failed and are not counted as passing tests.
   setting passed all 58. This was an environment restriction, not a passing run.
 
 CI PR: https://github.com/MiladMahdavi1999/gif-platform/pull/3 (unmerged).
-Final full-stack CI results and run URLs: pending; update before delivery.
+
+## Completed CI verification
+
+[Run 38896507610](https://github.com/MiladMahdavi1999/gif-platform/actions/runs/38896507610)
+completed successfully on code/test commit
+`bae852d694b1d1b11ee006c809f2afda06be782f`.
+Both full-stack and PostgreSQL jobs passed; retained sanitized result lines are in
+`docs/implementation/B02-ci-evidence.txt`. The final follow-up changes only this
+report and its evidence, with formatting/diff checks; it does not change the
+verified implementation or tests.
+
+- Frozen install, format, lint, typecheck, build, 58 unit tests and OpenAPI drift:
+  PASS.
+- `pnpm db:check`, `pnpm db:generate` plus migration diff check, and
+  `pnpm test:integration`: PASS, all 23 PostgreSQL tests.
+- `pnpm dev`: PASS, all six real services booted and healthy on CI.
+- `pnpm db:migrate`, `pnpm db:seed:dev` twice, `pnpm db:inspect:dev`,
+  `pnpm db:reset --confirm=gif_platform`, remigrate/reseed/reinspect: PASS.
+- `pnpm test:smoke`: PASS, real public home, liveness and readiness through Caddy.
+- `pnpm exec playwright install --with-deps chromium`; `pnpm test:e2e`:
+  PASS, all 8 browser tests (5 B02 + 3 B00).
+- `node scripts/test-auth-log-hygiene.mjs`: PASS with all six services live;
+  logs exclude tested passwords and dynamic session/CSRF values.
+- `node scripts/test-dependency-failures.mjs`: PASS, DB/MinIO stop gives readiness
+  503 and honest browser state; restore gives 200. API stop gives edge 502 while
+  home remains available; recovery verified.
+- `node scripts/test-local-lifecycle.mjs --confirm=gif_platform`: PASS, worker
+  SIGTERM exit 0, credential-free runtime logs, disposable volume reset and
+  fresh six-service reboot. Final migrate/seed/inspect also passed.
+
+Browser observations: open home anonymously (200); open `/review` anonymously
+(401); sign in as B01 uploader and open `/review` (403); use a separate browser
+context as B01 reviewer (200); refresh both and preserve their own sessions;
+logout reviewer and replay its old cookie (unauthenticated) while uploader stays 403. Login errors, transport errors, CSRF/Origin failures and throttling were
+observed in the actual browser. The review page screenshot is retained in CI's
+`b02-browser-evidence` artifact, alongside baseline browser/runtime evidence.
 
 ## Security verification mapping
 
@@ -119,7 +153,7 @@ Final full-stack CI results and run URLs: pending; update before delivery.
 | Missing, cross-session and forged CSRF; hostile/missing/null Origin; Fetch Metadata | PostgreSQL integration; browser CSRF/Origin/form negatives                     |
 | Secure/HttpOnly/Lax/host-only/path, TTL, expiry/clearing, no-store                  | PostgreSQL HTTP integration; local browser verifies HTTP development exception |
 | Account/IP limits, expiry, capacity, Retry-After, spoofed forwarded IP              | Unit + PostgreSQL integration + browser                                        |
-| Password/token/CSRF logging                                                         | Actual local API log check; six-service CI check pending                       |
+| Password/token/CSRF logging                                                         | Actual local API log check; six-service CI check passed                        |
 | B03 and later remain inaccessible/unimplemented                                     | Existing negative-route tests retained; no later routes added                  |
 
 ## Remaining gaps / risks
@@ -127,6 +161,8 @@ Final full-stack CI results and run URLs: pending; update before delivery.
 Production account provisioning, registration, reset/recovery, MFA, distributed
 rate limits, session-row retention/cleanup and production operator policy remain
 outside B02. Expired/revoked rows cannot authenticate, even before cleanup.
-No production exposure or complete first-slice readiness is claimed.
+No production exposure or complete first-slice readiness is claimed. There are
+no remaining B02 implementation/test blockers. The local MinIO egress restriction
+remains an environment limitation; the complete stack was verified in CI.
 
 Next unstarted task: **B03 NOT STARTED.**

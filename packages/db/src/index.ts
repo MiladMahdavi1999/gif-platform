@@ -1,6 +1,7 @@
 import pg from 'pg';
 
-// Connectivity only. No schema, migrations, seed or domain operations in B00.
+export * as schema from './schema.js';
+export { drizzle } from 'drizzle-orm/node-postgres';
 export function createDatabaseProbe(connectionString: string) {
   const pool = new pg.Pool({
     connectionString,

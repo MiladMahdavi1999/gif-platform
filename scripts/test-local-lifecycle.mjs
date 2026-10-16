@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
+import { requireDevelopment } from './require-development.mjs';
+
+requireDevelopment(process.argv[2] ?? '');
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 
-// Destructive reset of this repository's disposable B00 Compose project only.
+// Destructive reset of this repository's disposable development Compose project only.
 const args = ['compose', '--env-file', '.env', '-f', 'infra/compose.yaml'];
 const compose = (...command) =>
   execFileSync('docker', [...args, ...command], { stdio: 'inherit' });
@@ -40,6 +43,8 @@ for (const key of [
   'S3_ACCESS_KEY_ID',
   'S3_SECRET_ACCESS_KEY',
   'DATABASE_URL',
+  'DEV_UPLOADER_PASSWORD',
+  'DEV_REVIEWER_PASSWORD',
 ]) {
   assert.ok(env[key], `Missing local setting ${key}`);
   assert.ok(!logs.includes(env[key]), `Runtime logs contain ${key}`);

@@ -1,0 +1,17 @@
+# Explicit opt-in tooling; never part of ordinary app startup.
+services:
+  db-tools:
+    image: gif-platform-b00:local
+    profiles: [tools]
+    environment:
+      NODE_ENV: ${NODE_ENV:-}
+      APP_ENV: ${APP_ENV:-}
+      ALLOW_DEV_DATABASE_COMMANDS: ${ALLOW_DEV_DATABASE_COMMANDS:-false}
+      DATABASE_URL: ${DATABASE_URL:?Set database URL}
+      DEV_UPLOADER_EMAIL: ${DEV_UPLOADER_EMAIL:-}
+      DEV_UPLOADER_PASSWORD: ${DEV_UPLOADER_PASSWORD:-}
+      DEV_REVIEWER_EMAIL: ${DEV_REVIEWER_EMAIL:-}
+      DEV_REVIEWER_PASSWORD: ${DEV_REVIEWER_PASSWORD:-}
+    command: [node, packages/db/dist/cli.js, migrate]
+    depends_on:
+      db: { condition: service_healthy }

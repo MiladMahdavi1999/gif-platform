@@ -1,0 +1,35 @@
+Source: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/38812479656
+Tested code commit: b6588d5765c3d20a3cb23110e6be07307a14d300
+Jobs: b00=success, b01-database=success
+Selected actual output lines (ANSI removed):
+
+2026-10-15T21:47:41.8854093Z Everything's fine 🐶🔥
+2026-10-15T21:47:42.8671109Z No schema changes, nothing to migrate 😴
+2026-10-15T21:47:52.9403764Z  Test Files  1 passed (1)
+2026-10-15T21:47:52.9404919Z       Tests  13 passed (13)
+2026-10-15T21:47:58.7714281Z  Test Files  5 passed (5)
+2026-10-15T21:47:58.7715725Z       Tests  51 passed (51)
+2026-10-15T21:50:53.9646725Z Database migrate completed
+2026-10-15T21:50:55.8300359Z Database seed completed
+2026-10-15T21:50:57.6452031Z Database migrate completed
+2026-10-15T21:50:59.4485597Z Database seed completed
+2026-10-15T21:51:01.2823502Z {"accounts":[{"id":"9922f770-138d-4cd5-80db-2e0cda5d3ac0","role":"UPLOADER"},{"id":"46faa98c-05d5-4525-9d62-6b9c730aa16e","role":"REVIEWER"}],"assetCount":0}
+2026-10-15T21:51:03.1187626Z Database reset completed
+2026-10-15T21:51:04.9467629Z Database migrate completed
+2026-10-15T21:51:06.7738671Z Database seed completed
+2026-10-15T21:51:08.6326835Z {"accounts":[{"id":"f39911b9-6f83-4b07-92d3-bf8e640832cd","role":"UPLOADER"},{"id":"851e3f95-d998-46cf-b854-7aa6f13094c2","role":"REVIEWER"}],"assetCount":0}
+2026-10-15T21:51:09.2017019Z PASS: single-origin home, liveness and dependency readiness
+2026-10-15T21:51:34.3914511Z   3 passed (2.1s)
+2026-10-15T21:51:40.2748702Z PASS: db stopped -> readiness 503, liveness 200, browser unavailable
+2026-10-15T21:51:45.2924707Z PASS: db restored -> readiness 200, browser ready
+2026-10-15T21:51:50.3411135Z PASS: minio stopped -> readiness 503, liveness 200, browser unavailable
+2026-10-15T21:51:55.3682081Z PASS: minio restored -> readiness 200, browser ready
+2026-10-15T21:52:00.4121022Z PASS: API stopped -> edge 502, home still renders, browser unavailable
+2026-10-15T21:52:05.4605753Z PASS: API restored -> readiness 200, browser ready
+2026-10-15T21:52:05.9093909Z PASS: worker SIGTERM exits 0 and records graceful shutdown
+2026-10-15T21:52:06.2054570Z PASS: all six service logs exclude configured credentials/DB URL
+2026-10-15T21:52:18.0987610Z PASS: single-origin home, liveness and dependency readiness
+2026-10-15T21:52:18.0988699Z PASS: fresh local volumes reboot all six services and readiness 200
+2026-10-15T21:52:19.9152236Z Database migrate completed
+2026-10-15T21:52:21.7245825Z Database seed completed
+2026-10-15T21:52:23.5353647Z {"accounts":[{"id":"a4f4a5e7-03f1-4104-8cbf-096e6b8645c3","role":"UPLOADER"},{"id":"4af45637-9889-4e49-b6e1-2461362c6d3c","role":"REVIEWER"}],"assetCount":0}

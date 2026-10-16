@@ -1,16 +1,17 @@
-# GIF Platform — B00
+# GIF Platform — B01
 
-Local modular-monolith bootstrap only: Next.js home, Fastify health API, idle
-worker, PostgreSQL 17, MinIO and Caddy. **B01 NOT STARTED.**
+Local modular-monolith development stack: Next.js home, Fastify health API, idle
+worker, PostgreSQL 17, MinIO and Caddy, plus the B01 database foundation. **B02 NOT STARTED.**
 
-The full six-service startup, browser, dependency failure/recovery and fresh-volume
-reboot tests passed in GitHub Actions. The recovery executor's local MinIO build
-remains limited by its network policy; see the [actual results](docs/implementation/B00-report.md).
+B00 was merged in [PR #1](https://github.com/MiladMahdavi1999/gif-platform/pull/1).
+See [B01 results](docs/implementation/B01-report.md) for current executed checks
+and [B00 results](docs/implementation/B00-report.md) for the baseline.
 
 The seven original Phase 03 documents remain unchanged at the repository root;
 `Coding-Agent-Handover.md` and `Implementation-Backlog.md` define this task.
-Implementation choices remain Provisional. There are no domain tables,
-authentication, uploads, media routes, processing jobs or public buckets.
+Implementation choices remain Provisional. The 13 core tables and pure state
+guards exist; authentication, upload, moderation and search HTTP features remain
+unimplemented. The worker remains idle.
 
 ## Run a clean clone
 
@@ -24,6 +25,9 @@ silently change the lockfile.
 cp .env.example .env
 npx --yes pnpm@10.34.7 install --frozen-lockfile
 npx --yes pnpm@10.34.7 dev
+npx --yes pnpm@10.34.7 db:migrate
+npx --yes pnpm@10.34.7 db:seed:dev
+npx --yes pnpm@10.34.7 db:inspect:dev
 npx --yes pnpm@10.34.7 test:smoke
 ```
 
@@ -60,7 +64,7 @@ npx --yes pnpm@10.34.7 test:smoke
 npx --yes pnpm@10.34.7 exec playwright install --with-deps chromium
 npx --yes pnpm@10.34.7 test:e2e
 node scripts/test-dependency-failures.mjs
-node scripts/test-local-lifecycle.mjs
+node scripts/test-local-lifecycle.mjs --confirm=gif_platform
 ```
 
 The dependency-failure command stops/restores this local project's DB, MinIO and API. It
@@ -73,7 +77,7 @@ instead of downloading a second browser.
 The lifecycle command checks worker shutdown and all service logs for configured
 credentials, **deletes this project's disposable volumes**, reboots all six
 services from the built images and asserts readiness again. Use it only on the
-empty B00 development stack. CI retains the checked runtime log and browser
+disposable development stack. CI retains the checked runtime log and browser
 screenshots as an artifact.
 
 Health contracts:
@@ -90,23 +94,100 @@ For manual failure checks, run `docker compose --env-file .env -f infra/compose.
 refresh `/api/v1/health/ready` and watch the home status. Restore with the same
 command ending in `start db`; repeat for `minio` and `api`.
 
-Database migration and seed are **NOT IMPLEMENTED (B01)**. Both commands below
-exit 1 with a clear message and make no changes. Domain/database integration is
-also **NOT IMPLEMENTED**, and `test:integration` exits 1. B00's real dependency
-checks are the smoke/failure commands above, not a claim of domain integration.
+## Database foundation (B01)
+
+`packages/db/src/schema.ts` defines `users`, `role_grants`, `sessions`, `assets`,
+`tags`, `asset_tags`, `asset_states`, `upload_sessions`, `asset_variants`,
+`moderation_decisions`, `search_documents`, and `media_jobs`, plus `audit_events`.
+UUID defaults, UTC timestamps, FKs, uniqueness, CHECKs and all specified indexes
+are included. Audit UPDATE/DELETE/TRUNCATE is rejected by a database trigger.
+`search_documents.search_vector` is a stored generated, weighted `simple` FTS
+vector with a GIN index. It updates when title/tags change.
+
+The recommended path stays **full Compose**: root database commands run a
+one-off tooling container on the existing Compose network, using the app image
+built by `pnpm dev`. They never start auth or processing features. Rebuild that
+image with `pnpm dev` after changing database code/migrations.
 
 ```sh
 npx --yes pnpm@10.34.7 db:migrate
 npx --yes pnpm@10.34.7 db:seed:dev
-npx --yes pnpm@10.34.7 test:integration
+# Safe to repeat: no duplicate users/grants or replacement passwords.
+npx --yes pnpm@10.34.7 db:migrate
+npx --yes pnpm@10.34.7 db:seed:dev
+# Prints only seeded user UUIDs/roles and asset count: two users, zero assets.
+npx --yes pnpm@10.34.7 db:inspect:dev
+# DESTRUCTIVE: removes only this application's core schema/history in the local DB.
+npx --yes pnpm@10.34.7 db:reset --confirm=gif_platform
+npx --yes pnpm@10.34.7 db:migrate
+npx --yes pnpm@10.34.7 db:seed:dev
 ```
+
+Seed/inspect/reset require **all three** settings from the local `.env`:
+`NODE_ENV=development`, `APP_ENV=development`, and
+`ALLOW_DEV_DATABASE_COMMANDS=true`. Only `localhost`, loopback, or Compose `db`
+and a `gif_platform`/`gif_platform_*` database are accepted. Query-string
+connection overrides are refused. Reset also needs the
+exact database name in `--confirm=...`. `NODE_ENV=production` or
+`APP_ENV=production` always refuses seed/reset, including the lifecycle test.
+The API retains its production runtime mode and never receives seed passwords.
+No seed or reset runs at service startup. These guards complement ordinary
+production credential separation; do not point local tooling at a production DB.
+
+Copy/change `DEV_UPLOADER_*` and `DEV_REVIEWER_*` only in ignored `.env`.
+Emails must be distinct, trimmed lowercase; passwords must be at least 16
+characters. The seed creates one UPLOADER and one REVIEWER, with Argon2id
+(`m=19456 KiB,t=2,p=1`) and random salts. It never prints credentials or hashes,
+never overwrites an existing hash, and refuses conflicting roles. Password
+rotation is not a seed rerun; destructive reset is only for disposable data.
+
+Committed Drizzle migrations are append-only. The runner holds a transaction
+advisory lock and records SHA-256 checksums in `gif_migrations.history`;
+replay preserves data and edited/missing history fails. A failed batch rolls
+back DDL and ledger together. Production uses forward migration only; the
+explicit rollback SQL is reachable through the guarded development reset.
+
+```sh
+# Generate/version the next SQL file after editing schema.ts; review and commit it.
+npx --yes pnpm@10.34.7 db:generate
+npx --yes pnpm@10.34.7 db:check
+```
+
+For a production migration runner with securely injected `DATABASE_URL`, the
+built image command is `node packages/db/dist/cli.js migrate`. Do not use
+`drizzle-kit push` or a second migrator ledger. No destructive production down
+migration is provided.
+
+### Real PostgreSQL integration tests
+
+The isolated test database requires CREATEDB permission and never touches the
+application DB. Tests create/drop a uniquely named database ending in `_test`.
+An absent URL/opt-in fails instead of skipping. The following local dependency
+uses a temporary PostgreSQL data mount and loopback port 55432:
+
+```sh
+docker compose -f infra/compose.db-test.yaml up --wait
+TEST_DATABASE_URL=postgresql://gif_platform:local_only_integration_password@127.0.0.1:55432/gif_platform_test \
+  ALLOW_DATABASE_INTEGRATION_TESTS=true \
+  npx --yes pnpm@10.34.7 test:integration
+docker compose -f infra/compose.db-test.yaml down
+```
+
+Integration tests cover all 13 tables, all FKs, unique/CHECK constraints,
+Argon2id verification and separated roles, safe migration/seed replay, concurrent
+migration runners, changed-history refusal, failed-DDL rollback, generated FTS
+queries/updates/GIN planning, append-only audit, production refusal and
+reset→migrate→seed. Unit tests cover seven-axis transition guards separately,
+including self-review, missing rights/derivatives, stale version, invalid
+sequencing and delivery degradation without erasing historical approval.
+There are no B02 authentication endpoints or later feature workflows yet.
 
 ## Stop, reset and diagnose
 
 ```sh
 npx --yes pnpm@10.34.7 stop
-# Destructive: removes only this Compose project's disposable local volumes.
-docker compose --env-file .env -f infra/compose.yaml down --volumes
+# Destructive schema reset, guarded and explicitly confirmed:
+npx --yes pnpm@10.34.7 db:reset --confirm=gif_platform
 # Boot again with the same documented path:
 npx --yes pnpm@10.34.7 dev
 ```
@@ -132,9 +213,8 @@ plugins support ESLint 10. No unsupported peer override is used.
 Container bases use exact release tags: Node 24.19.0 bookworm-slim, PostgreSQL
 17.6 bookworm, Caddy 2.10.2 alpine and Go 1.24.8 bookworm for the pinned MinIO
 source build. These are local development images, not a production deployment
-approval. Drizzle schema/migrations start in B01; S3 object operations and bucket
-provisioning start in B03; FFmpeg starts in B04. Empty domain/testing package
-boundaries reserve their locations without prebuilding later tasks.
+approval. Drizzle ORM 0.45.4, Drizzle Kit 0.31.11 and Argon2 2.2.2 are pinned for B01; S3 object operations and bucket
+provisioning start in B03; FFmpeg starts in B04. Pure domain state guards reserve the later feature boundaries.
 
 Web imports only browser-safe contracts. ESLint blocks DB/storage imports into
 web and API/web framework imports into worker. Packages compile to ESM with
@@ -151,6 +231,7 @@ override after `infra/compose.yaml`. Never copy a session CA or credential into
 an image or disable TLS verification. This session's exact override invocation
 is recorded in [the B00 report](docs/implementation/B00-report.md).
 
-CI runs the same checks plus Compose, browser and real failure tests. A configured
-workflow is not evidence that a remote CI run passed. Executed results and known
-gaps are recorded in [docs/implementation/B00-report.md](docs/implementation/B00-report.md).
+CI runs the same checks plus PostgreSQL integration, migration drift, Compose,
+browser and real failure tests. A configured
+workflow is not evidence that a remote CI run passed. Executed B01 results and gaps are in
+[docs/implementation/B01-report.md](docs/implementation/B01-report.md).

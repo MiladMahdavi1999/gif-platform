@@ -119,7 +119,7 @@ export function createUploadRepository(connectionString: string) {
           ).rows[0];
           if (
             asset.title !== input.title ||
-            JSON.stringify(asset.tags) !==
+            JSON.stringify([...asset.tags].sort()) !==
               JSON.stringify([...input.tags].sort()) ||
             existing.claimedSize !==
               (input.claimedSizeBytes === undefined

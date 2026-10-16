@@ -26,7 +26,9 @@
     "db:generate": "drizzle-kit generate --config=packages/db/drizzle.config.ts",
     "db:check": "drizzle-kit check --config=packages/db/drizzle.config.ts",
     "db:inspect:dev": "node scripts/database-command.mjs inspect",
-    "db:reset": "node scripts/database-command.mjs reset"
+    "db:reset": "node scripts/database-command.mjs reset",
+    "api:generate": "pnpm build:packages && node scripts/generate-openapi.mjs",
+    "api:check": "pnpm build:packages && node scripts/generate-openapi.mjs --check"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",

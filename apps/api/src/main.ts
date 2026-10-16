@@ -1,19 +1,28 @@
 import { readApiConfig } from '@gif/config';
-import { createDatabaseProbe } from '@gif/db';
+import { createAuthRepository, createDatabaseProbe } from '@gif/db';
 import { checkObjectStore } from '@gif/storage';
 import { createApp } from './app.js';
 
 async function main() {
   const config = readApiConfig(process.env);
   const database = createDatabaseProbe(config.DATABASE_URL);
+  const auth = createAuthRepository(config.DATABASE_URL);
   const app = createApp(
     {
       database: database.check,
       storage: () => checkObjectStore(config.S3_INTERNAL_ENDPOINT),
     },
     true,
+    {
+      repository: auth.repository,
+      origin: config.PUBLIC_BASE_URL,
+      cookieName: config.SESSION_COOKIE_NAME,
+      ttlSeconds: config.SESSION_TTL_SECONDS,
+      secure: new URL(config.PUBLIC_BASE_URL).protocol === 'https:',
+    },
   );
   app.addHook('onClose', database.close);
+  app.addHook('onClose', auth.close);
   const shutdown = async () => {
     const deadline = setTimeout(() => process.exit(1), 8000);
     deadline.unref();

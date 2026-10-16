@@ -235,3 +235,55 @@ CI runs the same checks plus PostgreSQL integration, migration drift, Compose,
 browser and real failure tests. A configured
 workflow is not evidence that a remote CI run passed. Executed B01 results and gaps are in
 [docs/implementation/B01-report.md](docs/implementation/B01-report.md).
+
+## B02 authentication checkpoint
+
+B02 adds `/login`, sign out, session restoration and a protected `/review` access
+check. The public home and dependency health checks remain available anonymously.
+Use the two distinct **B01** seed accounts configured in your ignored `.env`;
+passwords are never printed. Run `pnpm db:migrate` and `pnpm db:seed:dev` before
+signing in. The seed is opt-in development tooling and does not reset an existing
+account password. No moderation actions or media workflow are implemented.
+
+- `POST /api/v1/auth/login`: strict JSON `{email,password}` and exact configured
+  `Origin`; returns the user and session-bound CSRF token, sets HttpOnly cookie.
+- `GET /api/v1/auth/session`: optional cookie, returns authenticated status and
+  user/CSRF only for a currently valid session.
+- `POST /api/v1/auth/logout`: requires current cookie, exact `Origin` and
+  `X-CSRF-Token`; revokes server-side and clears cookie. No body or `{}` only.
+- `GET /api/v1/review`: reviewer-only B02 stub; anonymous 401, uploader 403,
+  explicit REVIEWER grant 200. ADMIN has no implicit reviewer delegation.
+- `/review` returns those same HTTP statuses through an uncached web route.
+
+The browser uses the Caddy origin, with no cross-origin credentialed CORS.
+`PUBLIC_BASE_URL` must be an exact origin (no trailing slash/path). Optional
+`CSRF_ORIGIN` must match it. Non-development API runtimes require HTTPS.
+The local Compose API explicitly runs in **development** mode for HTTP; the
+compiled web and worker images retain their production runtime. HTTPS sessions
+always set `Secure`; all session cookies set `HttpOnly; SameSite=Lax; Path=/`,
+with no Domain attribute. `SESSION_COOKIE_NAME` defaults to `gif_session` and
+`SESSION_TTL_SECONDS` defaults to 86400 (absolute expiry, no sliding renewal).
+
+Provisional retry defaults: 10 attempts per normalized account and 50 per peer IP
+per 15 minutes, including successful attempts. `429` includes `Retry-After`.
+Buckets are bounded and process-local; restarting the API resets them. Forwarded
+IP headers are not trusted, so local Caddy clients share the peer-IP budget.
+A distributed limiter and a reviewed trusted-proxy policy are required before
+multi-instance internet deployment. No automatic credential retry is performed.
+
+Additional verification:
+
+```sh
+pnpm api:generate  # regenerate docs/api/openapi.json from implemented DTOs
+pnpm api:check     # drift check, also in CI
+# Full stack started, migrated and seeded first:
+node --env-file=.env node_modules/@playwright/test/cli.js test
+node scripts/test-auth-log-hygiene.mjs
+```
+
+`pnpm test:integration` now also runs B02 API tests against a real, disposable
+PostgreSQL database with B01 migrations/seed (same opt-in/URL requirements as
+above). Browser auth tests disable traces/video to keep credentials and session
+values out of retained evidence. Never enable authentication request traces or
+commit browser storage state. See `docs/implementation/B02-report.md` for actual
+local/CI results and Provisional implementation choices. **B03 NOT STARTED.**

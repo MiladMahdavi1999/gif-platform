@@ -54,3 +54,31 @@ describe('configuration', () => {
     expect(() => readWorkerConfig({ NODE_ENV: 'invalid' })).toThrow(/NODE_ENV/);
   });
 });
+
+it('requires HTTPS outside development and an exact canonical CSRF origin', () => {
+  expect(() => readApiConfig({ ...valid, NODE_ENV: 'production' })).toThrow(
+    /PUBLIC_BASE_URL/,
+  );
+  expect(() =>
+    readApiConfig({ ...valid, CSRF_ORIGIN: 'https://other.test' }),
+  ).toThrow(/CSRF_ORIGIN/);
+  expect(() =>
+    readApiConfig({ ...valid, PUBLIC_BASE_URL: 'http://localhost:8080/path' }),
+  ).toThrow(/PUBLIC_BASE_URL/);
+  expect(
+    readApiConfig({
+      ...valid,
+      NODE_ENV: 'production',
+      PUBLIC_BASE_URL: 'https://gif.test',
+      CSRF_ORIGIN: 'https://gif.test',
+    }).SESSION_TTL_SECONDS,
+  ).toBe(86400);
+});
+it.each(['0', '-1', '999999999'])(
+  'rejects unsafe session TTL %s',
+  (SESSION_TTL_SECONDS) => {
+    expect(() => readApiConfig({ ...valid, SESSION_TTL_SECONDS })).toThrow(
+      /SESSION_TTL_SECONDS/,
+    );
+  },
+);

@@ -1,4 +1,5 @@
 import Fastify, { LogController } from 'fastify';
+import { installAuth, type AuthOptions } from './auth.js';
 import type { Readiness } from '@gif/contracts';
 
 export interface HealthDependencies {
@@ -6,12 +7,21 @@ export interface HealthDependencies {
   storage: () => Promise<void>;
 }
 
-export function createApp(dependencies: HealthDependencies, logging = false) {
+export function createApp(
+  dependencies: HealthDependencies,
+  logging = false,
+  auth?: AuthOptions,
+) {
   const app = Fastify({
     logger: logging
       ? {
           level: 'info',
-          redact: ['req.headers.authorization', 'req.headers.cookie'],
+          redact: [
+            'req.headers.authorization',
+            'req.headers.cookie',
+            'req.headers["x-csrf-token"]',
+            'res.headers["set-cookie"]',
+          ],
         }
       : false,
     logController: new LogController({ disableRequestLogging: true }),
@@ -40,11 +50,18 @@ export function createApp(dependencies: HealthDependencies, logging = false) {
     return reply.code(ready ? 200 : 503).send(body);
   });
 
-  app.setErrorHandler((_error, request, reply) => {
-    reply.code(500).send({
+  if (auth)
+    app.register(async (instance) => {
+      await installAuth(instance, auth);
+    });
+
+  app.setErrorHandler((error, request, reply) => {
+    const status = (error as { statusCode?: number }).statusCode;
+    const invalid = status === 400 || status === 413 || status === 415;
+    reply.code(invalid ? status : 500).send({
       error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Request failed',
+        code: invalid ? 'INVALID_REQUEST' : 'INTERNAL_ERROR',
+        message: invalid ? 'Invalid request' : 'Request failed',
         requestId: request.id,
       },
     });

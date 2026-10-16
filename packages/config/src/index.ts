@@ -17,6 +17,17 @@ const common = z.object({
 export const apiConfigSchema = common.extend({
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
   PUBLIC_BASE_URL: httpUrl,
+  SESSION_COOKIE_NAME: z
+    .string()
+    .regex(/^[A-Za-z][A-Za-z0-9_]{0,63}$/)
+    .default('gif_session'),
+  SESSION_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(60)
+    .max(604800)
+    .default(86400),
+  CSRF_ORIGIN: httpUrl.optional(),
   DATABASE_URL: z.url().refine((value) => {
     return (
       URL.canParse(value) &&
@@ -41,7 +52,17 @@ export function readApiConfig(env: NodeJS.ProcessEnv): ApiConfig {
     ];
     throw new Error(`Invalid configuration fields: ${fields.join(', ')}`);
   }
-  return result.data;
+  const config = result.data;
+  const base = new URL(config.PUBLIC_BASE_URL);
+  if (
+    base.origin !== config.PUBLIC_BASE_URL ||
+    (config.CSRF_ORIGIN && config.CSRF_ORIGIN !== base.origin) ||
+    (config.NODE_ENV !== 'development' && base.protocol !== 'https:')
+  )
+    throw new Error(
+      'Invalid configuration fields: PUBLIC_BASE_URL, CSRF_ORIGIN',
+    );
+  return config;
 }
 
 export function readWorkerConfig(env: NodeJS.ProcessEnv) {

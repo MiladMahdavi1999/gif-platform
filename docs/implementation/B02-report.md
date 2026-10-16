@@ -1,7 +1,7 @@
 # B02 — Session login, CSRF and role authorization
 
-Task: B02 only. B03 NOT STARTED. Status: implementation complete; verification
-and PR evidence being collected. No merge is authorized or performed.
+Task: B02 only. B03 NOT STARTED. Status: implementation complete; local verification passed, full-stack
+CI evidence being collected. No merge is authorized or performed.
 
 ## Starting point and scope
 
@@ -83,8 +83,44 @@ failed and are not counted as passing tests.
 - Initial validator ordering and test dependency-location errors were corrected;
   reruns above passed. No failing attempt is represented as a successful check.
 
-Full-stack/browser and final CI results: pending execution. This report will be
-updated with observed results and URLs before delivery.
+- `pnpm format:check`, `pnpm api:check`, `pnpm db:check`, `pnpm db:generate`
+  and SQL migration diff check: PASS, no schema/OpenAPI drift.
+- Full Compose attempt with workspace-local Buildx config and proxy CA mount:
+  BLOCKED locally. The MinIO source build receives Forbidden for Go modules
+  redirected to `storage.googleapis.com`; policy was not bypassed.
+- Local hybrid: disposable PostgreSQL `gif_platform_b02_browser_test`, B01 CLI
+  migrate/seed, built API and web plus the pinned Caddy executable. Object store
+  unavailable, readiness truthfully remains 503. This is not a six-service pass.
+- `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium pnpm test:e2e tests/e2e/auth.spec.ts`:
+  PASS, all 5 actual browser tests. Separate uploader/reviewer cookie contexts,
+  refresh, logout plus replayed revoked cookie, anonymous home 200, review
+  401/403/200, invalid credentials/validation, network errors, CSRF/Origin/form
+  rejection, HttpOnly/Lax/local cookie and rate limit with visible UI error.
+  Initial ambiguous Next route-announcer alert selectors were scoped to main;
+  rerun passed. Traces and video were disabled throughout.
+- `node work/check-local-auth-logs.mjs`: PASS against actual API startup/request
+  logs, seeded login/logout, dynamic session and CSRF values. No values printed.
+- A later unit rerun without network-enabled execution hit the sandbox's loopback
+  bind restriction in existing B00 tests; rerunning in the scoped execution
+  setting passed all 58. This was an environment restriction, not a passing run.
+
+CI PR: https://github.com/MiladMahdavi1999/gif-platform/pull/3 (unmerged).
+Final full-stack CI results and run URLs: pending; update before delivery.
+
+## Security verification mapping
+
+| Concern                                                                             | Executed local evidence                                                        |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| B01 seeded Argon2id users, hashed persistence, rotation/logout revocation           | PostgreSQL API integration                                                     |
+| Unknown, expired, revoked, malformed and duplicate sessions                         | PostgreSQL API integration; revoked-cookie browser replay                      |
+| Account disable and role changes invalidate access                                  | PostgreSQL API integration                                                     |
+| Anonymous 401, uploader 403, reviewer 200, no implicit ADMIN delegation             | PostgreSQL integration; first three also through `/review` in browser          |
+| Wrong password / missing / disabled account uniform errors                          | PostgreSQL integration; wrong/missing browser errors                           |
+| Missing, cross-session and forged CSRF; hostile/missing/null Origin; Fetch Metadata | PostgreSQL integration; browser CSRF/Origin/form negatives                     |
+| Secure/HttpOnly/Lax/host-only/path, TTL, expiry/clearing, no-store                  | PostgreSQL HTTP integration; local browser verifies HTTP development exception |
+| Account/IP limits, expiry, capacity, Retry-After, spoofed forwarded IP              | Unit + PostgreSQL integration + browser                                        |
+| Password/token/CSRF logging                                                         | Actual local API log check; six-service CI check pending                       |
+| B03 and later remain inaccessible/unimplemented                                     | Existing negative-route tests retained; no later routes added                  |
 
 ## Remaining gaps / risks
 

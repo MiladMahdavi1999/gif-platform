@@ -18,7 +18,12 @@ async function signIn(page: Page, account: typeof uploader) {
     );
   await page.goto('/login');
   await page.getByLabel('Email', { exact: true }).fill(account.email);
-  await page.getByLabel('Password', { exact: true }).fill(account.password);
+  // Re-throw without Playwright action parameters if entering a seed secret fails.
+  try {
+    await page.getByLabel('Password', { exact: true }).fill(account.password);
+  } catch {
+    throw new Error('Unable to enter the configured seed password');
+  }
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText(
     `Signed in as ${account.email}`,

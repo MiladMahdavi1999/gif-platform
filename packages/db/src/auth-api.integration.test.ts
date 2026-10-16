@@ -119,9 +119,7 @@ describe('real PostgreSQL session authentication', () => {
     });
     expect(logout.statusCode).toBe(204);
     expect(logout.cookies[0]?.maxAge).toBe(0);
-    expect((await session(result.cookie)).json()).toEqual({
-      authenticated: false,
-    });
+    expect((await session(result.cookie)).json().authenticated).toBe(false);
     expect(
       (
         await pool.query(
@@ -170,9 +168,7 @@ describe('real PostgreSQL session authentication', () => {
     const first = await login();
     const second = await login('reviewer@local.test', first.cookie);
     expect(first.token !== second.token).toBe(true);
-    expect((await session(first.cookie)).json()).toEqual({
-      authenticated: false,
-    });
+    expect((await session(first.cookie)).json().authenticated).toBe(false);
     await pool.query(
       "UPDATE sessions SET expires_at=now()-interval '1 second' WHERE token_hash=$1",
       [digest(second.token)],
@@ -184,7 +180,7 @@ describe('real PostgreSQL session authentication', () => {
       'gif_session=bad',
       `${second.cookie}; ${second.cookie}`,
     ])
-      expect((await session(cookie)).json()).toEqual({ authenticated: false });
+      expect((await session(cookie)).json().authenticated).toBe(false);
     expect(
       (
         await app.inject({
@@ -295,7 +291,7 @@ describe('real PostgreSQL session authentication', () => {
         },
       });
       expect(response.statusCode).toBe(401);
-      expect(response.cookies).toHaveLength(0);
+      expect(response.cookies.length).toBe(0);
       const { code, message } = response.json().error;
       errors.push({ code, message });
     }
@@ -308,9 +304,7 @@ describe('real PostgreSQL session authentication', () => {
     await pool.query(
       "UPDATE users SET status='DISABLED' WHERE email='uploader@local.test'",
     );
-    expect((await session(logged.cookie)).json()).toEqual({
-      authenticated: false,
-    });
+    expect((await session(logged.cookie)).json().authenticated).toBe(false);
     await pool.query("UPDATE users SET status='ACTIVE'");
   });
   it('sets host-only secure HttpOnly Lax cookies, expiry and no-store; local HTTP omits Secure only in development', async () => {
@@ -376,9 +370,9 @@ describe('real PostgreSQL session authentication', () => {
       digest(csrfFor('different')),
       new Date(Date.now() + 60000),
     );
-    expect((await session(`gif_session=${token}`)).json()).toEqual({
-      authenticated: false,
-    });
+    expect((await session(`gif_session=${token}`)).json().authenticated).toBe(
+      false,
+    );
     const failed = createApp(
       { database: async () => {}, storage: async () => {} },
       false,

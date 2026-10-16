@@ -7,6 +7,13 @@ import {
   type OwnerAsset,
 } from '@gif/contracts';
 import { useSession } from '../session';
+const reviewMessages: Partial<
+  Record<OwnerAsset['states']['moderation'], string>
+> = {
+  APPROVED: 'Review approved.',
+  REJECTED: 'Review rejected. This asset is blocked from public access.',
+  REMOVED: 'Removed after review. This asset is blocked from public access.',
+};
 export function AssetReceipts({ assetId }: { assetId?: string }) {
   const { session, error: sessionError } = useSession();
   const [items, setItems] = useState<OwnerAsset[] | null>(null);
@@ -103,7 +110,8 @@ export function AssetReceipts({ assetId }: { assetId?: string }) {
           {item.errorCode && <p role="alert">{item.errorCode}</p>}
           <p>
             {item.states.processing === 'SUCCEEDED'
-              ? 'Processing succeeded. Private derivatives are ready for human moderation; not published.'
+              ? (reviewMessages[item.states.moderation] ??
+                'Processing succeeded. Private derivatives are ready for human moderation; not published.')
               : item.states.processing === 'FAILED_TERMINAL'
                 ? 'Processing failed. This file cannot be processed. Start a new upload; nothing is published.'
                 : item.states.processing === 'FAILED_RETRYABLE'

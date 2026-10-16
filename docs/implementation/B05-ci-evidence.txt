@@ -1,0 +1,42 @@
+B05 verified implementation CI evidence
+Repository: MiladMahdavi1999/gif-platform
+Branch: codex/b05-reviewer-moderation
+Verified implementation head: db36771bd159453ce6eab88cb2d87acb2a73f6e3
+Run: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/38952453079
+Job b00: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/38952453079/job/117146946091 — SUCCESS
+Job b01-database: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/38952453079/job/117146945884 — SUCCESS
+
+All required workflow steps completed successfully. No skipped test is counted as passed.
+The following are selected credential-free excerpts from the actual full-stack job log (UTC):
+
+2026-10-16T19:07:58.2130042Z  Test Files  10 passed (10)
+2026-10-16T19:07:58.2130746Z       Tests  77 passed (77)
+2026-10-16T19:11:34.8810611Z PASS: single-origin home, liveness and dependency readiness
+2026-10-16T19:11:47.9812578Z PASS B04: pinned input, animated GIF 2 frames/200ms, PNG 1 frame, actual SHA256/HEAD, eight private axes and denials
+2026-10-16T19:11:48.9273544Z PASS B04: two actual worker processes, exactly one atomic SKIP LOCKED claim
+2026-10-16T19:11:54.2628912Z PASS B04: actual SIGKILL after two uploads; zero variants before commit; expired lease restart; exactly two object versions/two variants/one success audit
+2026-10-16T19:12:10.7024612Z  Test Files  6 passed (6)
+2026-10-16T19:12:10.7025800Z       Tests  62 passed (62)
+2026-10-16T19:12:38.2883561Z ·····B05 browser: real upload processed
+2026-10-16T19:12:38.3355719Z B05 browser: anonymous and uploader review/preview denials verified
+2026-10-16T19:12:38.8673591Z ·B05 browser: reviewer detail opened
+2026-10-16T19:12:38.9538761Z B05 browser: poster and GIF decoded privately
+2026-10-16T19:12:39.0602488Z B05 browser: approval persisted and takedown available
+2026-10-16T19:12:39.3150143Z B05 browser: removal persisted with approval/removal audit
+2026-10-16T19:12:39.3630779Z B05 browser: flow and screenshot complete
+2026-10-16T19:12:39.3631149Z B05 browser: closing review contexts
+2026-10-16T19:12:45.6113439Z   15 passed (18.4s)
+2026-10-16T19:12:45.8926082Z B02 runtime logs contain no tested passwords, session token or CSRF token
+2026-10-16T19:12:46.9411762Z PASS: actual upload/processed worker logs exclude sessions, CSRF, signatures, storage keys, temporary paths, decoder output and credentials
+2026-10-16T19:12:47.1597885Z PASS B05: real private preview, approval/replay/removal and audited history; actual runtime logs exclude reviewer session, CSRF, private notes and credentials
+2026-10-16T19:12:53.0661901Z PASS: db stopped -> readiness 503, liveness 200, browser unavailable
+2026-10-16T19:12:58.0396699Z PASS: db restored -> readiness 200, browser ready
+2026-10-16T19:13:03.0992429Z PASS: minio stopped -> readiness 503, liveness 200, browser unavailable
+2026-10-16T19:13:08.0931968Z PASS: minio restored -> readiness 200, browser ready
+2026-10-16T19:13:12.8658377Z PASS: API stopped -> edge 502, home still renders, browser unavailable
+2026-10-16T19:13:18.0282677Z PASS: API restored -> readiness 200, browser ready
+2026-10-16T19:13:18.4230348Z PASS: worker SIGTERM exits 0 and records graceful shutdown
+2026-10-16T19:13:20.4210159Z PASS: all six service logs exclude configured credentials/DB URL
+2026-10-16T19:13:33.5016118Z PASS: single-origin home, liveness and dependency readiness
+2026-10-16T19:13:33.5022817Z PASS: fresh local volumes reboot all six services and readiness 200
+

@@ -82,10 +82,8 @@ test('reviewer inspects private poster/GIF, approves then removes with retained 
     const reviewPage = await reviewer.newPage();
     await login(reviewPage, 'REVIEWER');
     await reviewPage.goto('/review');
-    // Open by ID remains available for approved case management and takedown.
-    await reviewPage.getByLabel('Asset ID', { exact: true }).fill(asset.id);
     await reviewPage
-      .getByRole('button', { name: 'Open asset', exact: true })
+      .getByRole('button', { name: asset.title, exact: true })
       .click();
     await expect(
       reviewPage.getByRole('heading', { name: asset.title }),

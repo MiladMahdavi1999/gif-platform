@@ -19,6 +19,9 @@ export async function proxy(request: NextRequest) {
     'Cache-Control': 'no-store',
     'X-Robots-Tag': 'noindex, nofollow',
     'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Content-Security-Policy':
+      "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
   };
   if (status === 200) {
     const response = NextResponse.next();

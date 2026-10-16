@@ -1,8 +1,20 @@
 import { randomUUID } from 'node:crypto';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 import { animatedGif } from '@gif/testing';
 test.use({ trace: 'off', video: 'off' });
 test.describe.configure({ mode: 'serial' });
+let uploaderContext: BrowserContext;
+test.beforeAll(async ({ browser }) => {
+  uploaderContext = await browser.newContext({
+    baseURL: 'http://localhost:8080',
+  });
+  const page = await uploaderContext.newPage();
+  await login(page, 'UPLOADER');
+  await page.close();
+});
+test.afterAll(async () => {
+  await uploaderContext?.close();
+});
 async function login(page: Page, role: 'UPLOADER' | 'REVIEWER') {
   const email = process.env[`DEV_${role}_EMAIL`];
   const password = process.env[`DEV_${role}_PASSWORD`];
@@ -40,11 +52,10 @@ async function upload(page: Page) {
   return { id: new URL(page.url()).pathname.split('/').at(-1)!, title };
 }
 test('reviewer inspects private poster/GIF, approves then removes with retained audit; uploader/anonymous are denied', async ({
-  page,
   browser,
 }) => {
   test.setTimeout(90000);
-  await login(page, 'UPLOADER');
+  const page = await uploaderContext.newPage();
   const asset = await upload(page);
   expect((await page.goto('/review'))?.status()).toBe(403);
   for (const path of [
@@ -175,11 +186,10 @@ test('reviewer inspects private poster/GIF, approves then removes with retained 
   }
 });
 test('reviewer rejects with reason; simultaneous stale UI conflicts and requires reload; loading/errors are truthful', async ({
-  page,
   browser,
 }) => {
   test.setTimeout(90000);
-  await login(page, 'UPLOADER');
+  const page = await uploaderContext.newPage();
   const asset = await upload(page);
   const context = await browser.newContext({
     baseURL: 'http://localhost:8080',

@@ -274,8 +274,7 @@ export async function installAuth(app: FastifyInstance, options: AuthOptions) {
     '/api/v1/review',
     { preHandler: requireRole('REVIEWER') },
     async () => ({
-      message:
-        'Reviewer access verified. Moderation workflow is not implemented.',
+      message: 'Reviewer access verified.',
     }),
   );
 }

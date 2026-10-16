@@ -558,7 +558,7 @@ describe('B01 real PostgreSQL', () => {
     expect(
       (await client.query('SELECT count(*) FROM gif_migrations.history'))
         .rows[0].count,
-    ).toBe('4');
+    ).toBe('5');
     expect(
       (await client.query('SELECT count(*) FROM users')).rows[0].count,
     ).toBe('2');
@@ -584,11 +584,11 @@ describe('B01 real PostgreSQL', () => {
       const journal = JSON.parse(await readFile(journalFile, 'utf8'));
       journal.entries.push({
         idx: journal.entries.length,
-        tag: '0004_failure',
+        tag: '0005_failure',
       });
       await writeFile(journalFile, JSON.stringify(journal));
       await writeFile(
-        new URL('0004_failure.sql', directory),
+        new URL('0005_failure.sql', directory),
         'CREATE TABLE should_rollback(id integer); SELECT deliberately_missing_function();',
       );
       await expect(migrate(client, directory)).rejects.toMatchObject({
@@ -601,7 +601,7 @@ describe('B01 real PostgreSQL', () => {
       expect(
         (await client.query('SELECT count(*) FROM gif_migrations.history'))
           .rows[0].count,
-      ).toBe('4');
+      ).toBe('5');
     }));
 
   it('refuses production seed, inspect and reset before connecting and logs no credentials', async () => {

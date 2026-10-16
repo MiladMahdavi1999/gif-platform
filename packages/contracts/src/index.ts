@@ -8,6 +8,15 @@ import {
   ownerAssetsSchema,
 } from './uploads.js';
 export * from './uploads.js';
+export * from './review.js';
+import {
+  decisionRequestSchema,
+  removalRequestSchema,
+  reviewQuerySchema,
+  reviewResultSchema,
+  reviewQueueSchema,
+  reviewDetailSchema,
+} from './review.js';
 
 export const readinessSchema = z.object({
   status: z.enum(['ready', 'not_ready']),
@@ -68,7 +77,7 @@ export function createOpenApiDocument() {
   );
   return {
     openapi: '3.1.0',
-    info: { title: 'GIF Platform implemented API', version: '0.3.0' },
+    info: { title: 'GIF Platform implemented API', version: '0.5.0' },
     components: {
       securitySchemes: {
         sessionCookie: {
@@ -81,6 +90,115 @@ export function createOpenApiDocument() {
       },
     },
     paths: {
+      '/api/v1/review/queue': {
+        get: {
+          security: [{ sessionCookie: [] }],
+          description:
+            'REVIEWER only. SUCCEEDED/PENDING queue ordered by createdAt/id descending, bounded UUID keyset pagination.',
+          parameters: Object.entries(reviewQuerySchema.shape).map(
+            ([name, schema]) => ({
+              in: 'query',
+              name,
+              required: false,
+              schema: z.toJSONSchema(schema, { io: 'input' }),
+            }),
+          ),
+          responses: {
+            ...errors,
+            200: response('Pending review queue', reviewQueueSchema),
+          },
+        },
+      },
+      '/api/v1/review/assets/{assetId}': {
+        get: {
+          security: [{ sessionCookie: [] }],
+          parameters: [
+            {
+              in: 'path',
+              name: 'assetId',
+              required: true,
+              schema: { type: 'string', format: 'uuid' },
+            },
+          ],
+          description:
+            'REVIEWER only. Metadata, independent states, private derivative preview paths and append-only decision/audit history. No object keys, versions or source URL.',
+          responses: {
+            ...errors,
+            200: response('Private reviewer detail', reviewDetailSchema),
+          },
+        },
+      },
+      '/api/v1/review/assets/{assetId}/media/{variant}': {
+        get: {
+          security: [{ sessionCookie: [] }],
+          parameters: [
+            {
+              in: 'path',
+              name: 'assetId',
+              required: true,
+              schema: { type: 'string', format: 'uuid' },
+            },
+            {
+              in: 'path',
+              name: 'variant',
+              required: true,
+              schema: { type: 'string', enum: ['DISPLAY_GIF', 'POSTER_PNG'] },
+            },
+          ],
+          description:
+            'REVIEWER only; exact private derivative version with SHA256 verification. Never quarantine. No redirects or signed GET URLs; no-store, nosniff, same-origin.',
+          responses: {
+            ...errors,
+            200: {
+              description: 'Private verified preview',
+              content: {
+                'image/gif': { schema: { type: 'string', format: 'binary' } },
+                'image/png': { schema: { type: 'string', format: 'binary' } },
+              },
+            },
+          },
+        },
+      },
+      ...Object.fromEntries(
+        ['decision', 'remove'].map((operation) => [
+          `/api/v1/review/assets/{assetId}/${operation}`,
+          {
+            post: {
+              security: [{ sessionCookie: [] }],
+              parameters: [
+                {
+                  in: 'path',
+                  name: 'assetId',
+                  required: true,
+                  schema: { type: 'string', format: 'uuid' },
+                },
+                ...['Origin', 'X-CSRF-Token'].map((name) => ({
+                  in: 'header',
+                  name,
+                  required: true,
+                  schema: { type: 'string' },
+                })),
+              ],
+              description:
+                operation === 'decision'
+                  ? 'REVIEWER and non-owner only. Locked version-guarded APPROVE/REJECT with decision, audit and search projection transaction. Approval verifies exact derivative HEAD, rights v1, technical readiness and PENDING. Exact replay by same actor/input version/semantics returns current state only while still current; other stale/conflicting inputs return 409.'
+                  : 'REVIEWER and non-owner only. APPROVED to REMOVED, authorization restriction and projection deletion atomically. Reason required. Exact current replay is idempotent; conflicts return 409. No public delivery endpoint is implemented.',
+              requestBody: {
+                required: true,
+                content: json(
+                  operation === 'decision'
+                    ? decisionRequestSchema
+                    : removalRequestSchema,
+                ),
+              },
+              responses: {
+                ...errors,
+                200: response('Committed moderation state', reviewResultSchema),
+              },
+            },
+          },
+        ]),
+      ),
       '/api/v1/uploads': {
         post: {
           security: [{ sessionCookie: [] }],
@@ -247,7 +365,7 @@ export function createOpenApiDocument() {
         get: {
           security: [{ sessionCookie: [] }],
           description:
-            'B02 reviewer authorization stub only; requires explicit REVIEWER grant.',
+            'Reviewer authorization checkpoint; requires explicit REVIEWER grant. B05 workflow routes are under /review/queue and /review/assets.',
           responses: {
             200: response(
               'Reviewer access verified',

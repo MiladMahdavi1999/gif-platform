@@ -3,11 +3,13 @@ import {
   createAuthRepository,
   createDatabaseProbe,
   createUploadRepository,
+  createReviewRepository,
 } from '@gif/db';
 import {
   checkObjectStore,
   checkUploadStorage,
   createUploadStorage,
+  createReviewStorage,
 } from '@gif/storage';
 import { createApp } from './app.js';
 
@@ -17,6 +19,8 @@ async function main() {
   const auth = createAuthRepository(config.DATABASE_URL);
   const uploads = createUploadRepository(config.DATABASE_URL);
   const storage = createUploadStorage(config);
+  const review = createReviewRepository(config.DATABASE_URL);
+  const reviewStorage = createReviewStorage(config);
   const app = createApp(
     {
       database: database.check,
@@ -39,10 +43,13 @@ async function main() {
       ttlSeconds: config.MEDIA_UPLOAD_POLICY_TTL_SECONDS,
       maxBytes: config.MAX_GIF_UPLOAD_BYTES,
     },
+    { repository: review.repository, storage: reviewStorage },
   );
   app.addHook('onClose', database.close);
   app.addHook('onClose', auth.close);
   app.addHook('onClose', uploads.close);
+  app.addHook('onClose', review.close);
+  app.addHook('onClose', async () => reviewStorage.close());
   app.addHook('onClose', async () => storage.close());
   const shutdown = async () => {
     const deadline = setTimeout(() => process.exit(1), 8000);

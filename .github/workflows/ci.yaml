@@ -1,4 +1,4 @@
-name: B00 through B04 checks
+name: B00 through B05 checks
 on:
   push:
   pull_request:
@@ -45,7 +45,7 @@ jobs:
       - run: pnpm db:inspect:dev
       - run: pnpm test:smoke
       - run: docker compose -f infra/compose.db-test.yaml up -d --wait
-      - name: All B01 B02 B03 B04 real PostgreSQL MinIO FFmpeg and crash integration tests
+      - name: All B01 through B05 real PostgreSQL MinIO processing and moderation integration tests
         run: pnpm test:integration
         env:
           TEST_DATABASE_URL: postgresql://gif_platform:local_only_integration_password@127.0.0.1:55432/gif_platform_test
@@ -67,7 +67,7 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: b04-browser-evidence
+          name: b05-browser-evidence
           path: test-results/
           if-no-files-found: ignore
       - if: always()
@@ -107,4 +107,4 @@ jobs:
           git diff --exit-code -- packages/db/migrations
           test -z "$(git ls-files --others --exclude-standard packages/db/migrations)"
       - name: B01 and B02 PostgreSQL regression tests (B03 also runs in full-stack job)
-        run: pnpm test:integration --exclude packages/db/src/uploads.integration.test.ts --exclude packages/db/src/processing.integration.test.ts
+        run: pnpm test:integration --exclude packages/db/src/uploads.integration.test.ts --exclude packages/db/src/processing.integration.test.ts --exclude packages/db/src/review.integration.test.ts

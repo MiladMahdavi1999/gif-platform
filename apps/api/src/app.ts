@@ -2,6 +2,7 @@ import Fastify, { LogController } from 'fastify';
 import { installAuth, type AuthOptions } from './auth.js';
 import type { Readiness } from '@gif/contracts';
 import { installUploads, type UploadOptions } from './uploads.js';
+import { installReview, type ReviewOptions } from './review.js';
 
 export interface HealthDependencies {
   database: () => Promise<void>;
@@ -13,6 +14,7 @@ export function createApp(
   logging = false,
   auth?: AuthOptions,
   uploads?: UploadOptions,
+  review?: ReviewOptions,
 ) {
   const app = Fastify({
     logger: logging
@@ -55,6 +57,10 @@ export function createApp(
   if (auth)
     app.register(async (instance) => {
       await installAuth(instance, auth);
+      if (review)
+        await instance.register(async (reviewApp) =>
+          installReview(reviewApp, review),
+        );
       if (uploads)
         await instance.register(async (uploadApp) =>
           installUploads(uploadApp, uploads),

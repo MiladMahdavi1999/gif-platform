@@ -29,6 +29,13 @@
       "when": 1792156012801,
       "tag": "0003_processing_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792175366606,
+      "tag": "0004_moderation_history",
+      "breakpoints": true
     }
   ]
 }

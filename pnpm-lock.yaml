@@ -125,6 +125,9 @@ importers:
       '@gif/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@gif/domain':
+        specifier: workspace:*
+        version: link:../domain
       '@node-rs/argon2':
         specifier: 2.2.2
         version: 2.2.2
@@ -145,6 +148,9 @@ importers:
       '@aws-sdk/s3-presigned-post':
         specifier: 3.922.0
         version: 3.922.0
+      '@gif/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/testing: {}
 

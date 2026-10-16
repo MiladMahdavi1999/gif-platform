@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { test, expect, type Page } from '@playwright/test';
 
 // Authentication traffic includes secrets. Never retain request traces or videos.
@@ -171,6 +172,7 @@ test('login retry limit is visible and cannot be bypassed with forwarded IP head
   page,
 }) => {
   // Unknown account keeps the B01 personas usable for other tests.
+  const rateEmail = `rate-limit-${randomUUID()}@local.test`;
   let status = 0;
   for (let index = 0; index < 11; index++) {
     const response = await page.request.post('/api/v1/auth/login', {
@@ -178,7 +180,7 @@ test('login retry limit is visible and cannot be bypassed with forwarded IP head
         origin: 'http://localhost:8080',
         'x-forwarded-for': `198.51.100.${index}`,
       },
-      data: { email: 'rate-limit-browser@local.test', password: 'incorrect' },
+      data: { email: rateEmail, password: 'incorrect' },
     });
     status = response.status();
     if (status === 429) {
@@ -188,9 +190,7 @@ test('login retry limit is visible and cannot be bypassed with forwarded IP head
   }
   expect(status).toBe(429);
   await page.goto('/login');
-  await page
-    .getByLabel('Email', { exact: true })
-    .fill('rate-limit-browser@local.test');
+  await page.getByLabel('Email', { exact: true }).fill(rateEmail);
   await page.getByLabel('Password', { exact: true }).fill('incorrect');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('main').getByRole('alert')).toHaveText(

@@ -16,7 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "pnpm build:packages && vitest run",
-    "test:e2e": "playwright test",
+    "test:e2e": "node --env-file-if-exists=.env node_modules/@playwright/test/cli.js test",
     "test:integration": "pnpm build:packages && vitest run --config vitest.integration.config.ts",
     "db:migrate": "node scripts/database-command.mjs migrate",
     "db:seed:dev": "node scripts/database-command.mjs seed",

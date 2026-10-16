@@ -278,7 +278,7 @@ Additional verification:
 pnpm api:generate  # regenerate docs/api/openapi.json from implemented DTOs
 pnpm api:check     # drift check, also in CI
 # Full stack started, migrated and seeded first:
-node --env-file=.env node_modules/@playwright/test/cli.js test
+pnpm test:e2e
 node scripts/test-auth-log-hygiene.mjs
 ```
 

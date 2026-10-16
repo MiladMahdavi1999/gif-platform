@@ -37,7 +37,7 @@ jobs:
       - run: pnpm db:inspect:dev
       - run: pnpm test:smoke
       - run: pnpm exec playwright install --with-deps chromium
-      - run: node --env-file=.env node_modules/@playwright/test/cli.js test
+      - run: pnpm test:e2e
       - run: node scripts/test-auth-log-hygiene.mjs
       - run: node scripts/test-dependency-failures.mjs
       - run: node scripts/test-local-lifecycle.mjs --confirm=gif_platform

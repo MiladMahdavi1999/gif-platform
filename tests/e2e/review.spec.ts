@@ -57,6 +57,7 @@ test('reviewer inspects private poster/GIF, approves then removes with retained 
   test.setTimeout(90000);
   const page = await uploaderContext.newPage();
   const asset = await upload(page);
+  console.log('B05 browser: real upload processed');
   expect((await page.goto('/review'))?.status()).toBe(403);
   for (const path of [
     '/api/v1/review/queue',
@@ -79,6 +80,9 @@ test('reviewer inspects private poster/GIF, approves then removes with retained 
       `/api/v1/review/assets/${asset.id}/media/POSTER_PNG`,
     ])
       expect((await anonymous.request.get(path)).status()).toBe(401);
+    console.log(
+      'B05 browser: anonymous and uploader review/preview denials verified',
+    );
     const reviewPage = await reviewer.newPage();
     await login(reviewPage, 'REVIEWER');
     await reviewPage.goto('/review');
@@ -88,6 +92,7 @@ test('reviewer inspects private poster/GIF, approves then removes with retained 
     await expect(
       reviewPage.getByRole('heading', { name: asset.title }),
     ).toBeVisible();
+    console.log('B05 browser: reviewer detail opened');
     const image = reviewPage.getByRole('img');
     await expect(image).toBeVisible();
     await expect
@@ -116,6 +121,7 @@ test('reviewer inspects private poster/GIF, approves then removes with retained 
     );
     expect(media.status()).toBe(200);
     expect(media.headers()['cache-control']).toBe('no-store');
+    console.log('B05 browser: poster and GIF decoded privately');
     expect(
       (
         await reviewPage.request.get(
@@ -138,6 +144,7 @@ test('reviewer inspects private poster/GIF, approves then removes with retained 
         exact: true,
       }),
     ).toBeVisible();
+    console.log('B05 browser: approval persisted and takedown available');
     await reviewPage.reload();
     await reviewPage.getByLabel('Asset ID', { exact: true }).fill(asset.id);
     await reviewPage
@@ -160,6 +167,7 @@ test('reviewer inspects private poster/GIF, approves then removes with retained 
     ).toBeVisible();
     await expect(reviewPage.getByText(/MODERATION_APPROVE/)).toBeVisible();
     await expect(reviewPage.getByText(/MODERATION_REMOVE/)).toBeVisible();
+    console.log('B05 browser: removal persisted with approval/removal audit');
     const d = await (
       await reviewPage.request.get(`/api/v1/review/assets/${asset.id}`)
     ).json();
@@ -177,10 +185,14 @@ test('reviewer inspects private poster/GIF, approves then removes with retained 
       `/media/${asset.id}/display.gif`,
     ])
       expect((await anonymous.request.get(path)).status()).toBe(404);
-    await reviewPage.screenshot({ path: 'test-results/b05-removed-audit.png' });
+    await reviewPage.screenshot({
+      path: 'test-results/b05-removed-audit.png',
+      timeout: 10000,
+    });
+    console.log('B05 browser: flow and screenshot complete');
   } finally {
-    await reviewer.close();
-    await anonymous.close();
+    console.log('B05 browser: closing review contexts');
+    await Promise.all([reviewer.close(), anonymous.close()]);
   }
 });
 test('reviewer rejects with reason; simultaneous stale UI conflicts and requires reload; loading/errors are truthful', async ({

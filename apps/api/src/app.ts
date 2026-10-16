@@ -1,3 +1,4 @@
+import { installPublic, type PublicOptions } from './public.js';
 import Fastify, { LogController } from 'fastify';
 import { installAuth, type AuthOptions } from './auth.js';
 import type { Readiness } from '@gif/contracts';
@@ -15,6 +16,7 @@ export function createApp(
   auth?: AuthOptions,
   uploads?: UploadOptions,
   review?: ReviewOptions,
+  publicOptions?: PublicOptions,
 ) {
   const app = Fastify({
     logger: logging
@@ -35,7 +37,8 @@ export function createApp(
 
   app.addHook('onSend', async (request, reply) => {
     reply.header('X-Request-ID', request.id);
-    reply.header('Cache-Control', 'no-store');
+    if (!reply.hasHeader('Cache-Control'))
+      reply.header('Cache-Control', 'no-store');
   });
 
   app.get('/api/v1/health/live', async () => ({ status: 'ok' }));
@@ -53,6 +56,9 @@ export function createApp(
     };
     return reply.code(ready ? 200 : 503).send(body);
   });
+
+  if (publicOptions)
+    app.register(async (instance) => installPublic(instance, publicOptions));
 
   if (auth)
     app.register(async (instance) => {

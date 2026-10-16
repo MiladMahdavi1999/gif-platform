@@ -76,6 +76,7 @@ it('requires HTTPS outside development and an exact canonical CSRF origin', () =
     readApiConfig({
       ...valid,
       NODE_ENV: 'production',
+      PUBLIC_CURSOR_SECRET: 'configured_production_cursor_secret_32_bytes',
       PUBLIC_BASE_URL: 'https://gif.test',
       CSRF_ORIGIN: 'https://gif.test',
       S3_INTERNAL_ENDPOINT: 'https://storage.internal.test',
@@ -115,4 +116,23 @@ it('bounds upload policies and requires separate buckets and canonical endpoints
   });
   expect(config.MAX_GIF_OUTPUT_BYTES).toBe(1024);
   expect(config.MAX_GIF_UPLOAD_BYTES).toBe(100);
+});
+
+it('requires a cursor signing key outside development and bounds public cache TTL', () => {
+  expect(() =>
+    readApiConfig({
+      ...valid,
+      NODE_ENV: 'production',
+      PUBLIC_BASE_URL: 'https://gif.test',
+      S3_INTERNAL_ENDPOINT: 'https://storage.test',
+      S3_PUBLIC_ENDPOINT: 'https://storage.test',
+    }),
+  ).toThrow(/PUBLIC_CURSOR_SECRET/);
+  for (const PUBLIC_MEDIA_CACHE_SECONDS of ['-1', '31'])
+    expect(() =>
+      readApiConfig({ ...valid, PUBLIC_MEDIA_CACHE_SECONDS }),
+    ).toThrow(/PUBLIC_MEDIA_CACHE_SECONDS/);
+  expect(() =>
+    readApiConfig({ ...valid, PUBLIC_CURSOR_SECRET: 'short' }),
+  ).toThrow(/PUBLIC_CURSOR_SECRET/);
 });

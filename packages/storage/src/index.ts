@@ -9,3 +9,4 @@ export async function checkObjectStore(endpoint: string): Promise<void> {
 }
 export * from './processing.js';
 export * from './review.js';
+export * from './public.js';

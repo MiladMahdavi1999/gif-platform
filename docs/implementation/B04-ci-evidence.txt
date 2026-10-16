@@ -1,0 +1,25 @@
+B04 verified code: 46e9fd77f923b9b27334912c6e1245e0a7ad0e3f
+CI: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/38908695929
+Full-stack job: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/38908695929/job/116998732460
+Browser artifact: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/38908695929/artifacts/12049821536
+Selected result lines only (credential-bearing request/environment dumps excluded):
+2026-10-16T13:34:19.2729090Z  Test Files  8 passed (8)
+2026-10-16T13:34:19.2729947Z       Tests  75 passed (75)
+2026-10-16T13:37:41.8745393Z PASS: single-origin home, liveness and dependency readiness
+2026-10-16T13:37:55.8582052Z PASS B04: pinned input, animated GIF 2 frames/200ms, PNG 1 frame, actual SHA256/HEAD, eight private axes and denials
+2026-10-16T13:37:56.8414179Z PASS B04: two actual worker processes, exactly one atomic SKIP LOCKED claim
+2026-10-16T13:38:02.3218156Z PASS B04: actual SIGKILL after two uploads; zero variants before commit; expired lease restart; exactly two object versions/two variants/one success audit
+2026-10-16T13:38:11.7001498Z  Test Files  5 passed (5)
+2026-10-16T13:38:11.7009459Z       Tests  48 passed (48)
+2026-10-16T13:38:43.2868484Z   13 passed (15.8s)
+2026-10-16T13:38:45.7644652Z PASS: actual upload/processed worker logs exclude sessions, CSRF, signatures, storage keys, temporary paths, decoder output and credentials
+2026-10-16T13:38:51.5914439Z PASS: db stopped -> readiness 503, liveness 200, browser unavailable
+2026-10-16T13:38:56.7033420Z PASS: db restored -> readiness 200, browser ready
+2026-10-16T13:39:01.5214056Z PASS: minio stopped -> readiness 503, liveness 200, browser unavailable
+2026-10-16T13:39:06.6420657Z PASS: minio restored -> readiness 200, browser ready
+2026-10-16T13:39:11.6724101Z PASS: API stopped -> edge 502, home still renders, browser unavailable
+2026-10-16T13:39:16.3957130Z PASS: API restored -> readiness 200, browser ready
+2026-10-16T13:39:17.2417552Z PASS: worker SIGTERM exits 0 and records graceful shutdown
+2026-10-16T13:39:19.6446033Z PASS: all six service logs exclude configured credentials/DB URL
+2026-10-16T13:39:33.3149783Z PASS: single-origin home, liveness and dependency readiness
+2026-10-16T13:39:33.3181286Z PASS: fresh local volumes reboot all six services and readiness 200

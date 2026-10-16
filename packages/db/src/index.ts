@@ -30,3 +30,5 @@ export function createDatabaseProbe(connectionString: string) {
 }
 export * from './auth.js';
 export * from './uploads.js';
+export * from './processing.js';
+export * from './worker-access.js';

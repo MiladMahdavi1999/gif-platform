@@ -9,6 +9,9 @@
     "start": "node dist/main.js"
   },
   "dependencies": {
-    "@gif/config": "workspace:*"
+    "@gif/config": "workspace:*",
+    "@gif/contracts": "workspace:*",
+    "@gif/db": "workspace:*",
+    "@gif/storage": "workspace:*"
   }
 }

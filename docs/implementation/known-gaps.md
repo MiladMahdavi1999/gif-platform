@@ -18,3 +18,7 @@
   reviewed proxy trust policy remain prerequisites for multiple API instances.
   Production provisioning, session retention and operator policy are outside
   this task. See [B02-report.md](B02-report.md) for current execution evidence.
+
+## B04 update
+
+B04 adds the durable lease worker, constrained FFmpeg processing and verified private derivatives. Local MinIO source build remains blocked by the executor network policy; the B04 report distinguishes local PostgreSQL/decoder checks from full CI MinIO/browser evidence. Production identity provisioning, patched decoder maintenance and audited orphan/retention cleanup remain operational gaps. No content is approved or public. See [B04-report.md](B04-report.md). B05 NOT STARTED.

@@ -11,6 +11,9 @@ importers:
       '@aws-sdk/client-s3':
         specifier: 3.922.0
         version: 3.922.0
+      '@gif/config':
+        specifier: workspace:*
+        version: link:packages/config
       '@gif/contracts':
         specifier: workspace:*
         version: link:packages/contracts
@@ -95,6 +98,15 @@ importers:
       '@gif/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@gif/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@gif/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@gif/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
 
   packages/config:
     dependencies:

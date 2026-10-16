@@ -97,9 +97,47 @@ export function readApiConfig(env: NodeJS.ProcessEnv): ApiConfig {
   return config;
 }
 
-export function readWorkerConfig(env: NodeJS.ProcessEnv) {
-  const result = common.safeParse(env);
-  if (!result.success)
-    throw new Error('Invalid configuration fields: NODE_ENV');
+export const workerConfigSchema = apiConfigSchema.extend({
+  MEDIA_JOB_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
+  MEDIA_JOB_LEASE_SECONDS: z.coerce.number().int().min(3).max(600).default(30),
+  MEDIA_JOB_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .min(100)
+    .max(10000)
+    .default(1000),
+  MAX_GIF_PIXELS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(16000000)
+    .default(16000000),
+  MAX_GIF_DIMENSION: z.coerce.number().int().min(1).max(8192).default(4096),
+  MAX_GIF_DURATION_SECONDS: z.coerce.number().positive().max(30).default(30),
+  MAX_GIF_FRAMES: z.coerce.number().int().min(2).max(1000).default(300),
+  MAX_GIF_OUTPUT_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(20971520)
+    .default(20971520),
+  MEDIA_EXECUTION_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(20000)
+    .default(10000),
+  MEDIA_JOB_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(120000)
+    .default(60000),
+});
+export type WorkerConfig = z.infer<typeof workerConfigSchema>;
+export function readWorkerConfig(env: NodeJS.ProcessEnv): WorkerConfig {
+  readApiConfig(env);
+  const result = workerConfigSchema.safeParse(env);
+  if (!result.success) throw new Error('Invalid worker configuration');
   return result.data;
 }

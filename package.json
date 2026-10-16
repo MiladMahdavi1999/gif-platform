@@ -15,9 +15,9 @@
     "typecheck": "pnpm build:packages && pnpm -r typecheck && tsc -p tsconfig.tools.json",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "pnpm build:packages && vitest run",
+    "test": "pnpm build:packages && pnpm build:decoder && vitest run",
     "test:e2e": "node --env-file-if-exists=.env node_modules/@playwright/test/cli.js test",
-    "test:integration": "pnpm build:packages && vitest run --config vitest.integration.config.ts",
+    "test:integration": "pnpm build:packages && pnpm build:decoder && pnpm --filter @gif/worker build && vitest run --config vitest.integration.config.ts",
     "db:migrate": "node scripts/database-command.mjs migrate",
     "db:seed:dev": "node scripts/database-command.mjs seed",
     "dev": "docker compose --env-file .env -f infra/compose.yaml up --build --wait",
@@ -29,7 +29,8 @@
     "db:reset": "node scripts/database-command.mjs reset",
     "api:generate": "pnpm build:packages && node scripts/generate-openapi.mjs",
     "api:check": "pnpm build:packages && node scripts/generate-openapi.mjs --check",
-    "storage:provision:dev": "node scripts/provision-storage.mjs"
+    "storage:provision:dev": "node scripts/provision-storage.mjs",
+    "build:decoder": "node scripts/build-decoder.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.922.0",
@@ -47,6 +48,7 @@
     "prettier": "3.9.10",
     "typescript": "5.9.3",
     "typescript-eslint": "8.71.2",
-    "vitest": "5.0.5"
+    "vitest": "5.0.5",
+    "@gif/config": "workspace:*"
   }
 }

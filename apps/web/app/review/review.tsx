@@ -298,23 +298,22 @@ export function Review() {
                       ? 'Takedown'
                       : 'Review decision'}
                   </legend>
-                  <label>
-                    Reason
-                    <select
-                      value={reason}
-                      onChange={(e) => setReason(e.target.value)}
-                    >
-                      <option value="">Choose a reason</option>
-                      {(detail.moderation === 'APPROVED'
-                        ? removalReasons
-                        : rejectionReasons
-                      ).map((v) => (
-                        <option key={v} value={v}>
-                          {v}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <label htmlFor="review-reason">Reason</label>
+                  <select
+                    id="review-reason"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                  >
+                    <option value="">Choose a reason</option>
+                    {(detail.moderation === 'APPROVED'
+                      ? removalReasons
+                      : rejectionReasons
+                    ).map((v) => (
+                      <option key={v} value={v}>
+                        {v}
+                      </option>
+                    ))}
+                  </select>
                   <label>
                     Optional notes
                     <textarea

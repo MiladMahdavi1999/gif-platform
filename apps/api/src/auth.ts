@@ -89,11 +89,12 @@ export class LoginLimiter {
       [`ip:${ip}`, this.ipLimit],
       [`account:${digest(email).toString('hex')}`, this.accountLimit],
     ] as const;
+    const newEntries = keys.filter(([key]) => !this.entries.has(key)).length;
+    if (this.entries.size + newEntries > this.capacity)
+      return Math.ceil(this.windowMs / 1000);
     let wait = 0;
     for (const [key, limit] of keys) {
       const value = this.entries.get(key);
-      if (!value && this.entries.size >= this.capacity)
-        return Math.ceil(this.windowMs / 1000);
       if (value && value.count >= limit)
         wait = Math.max(wait, Math.ceil((value.until - now) / 1000));
     }

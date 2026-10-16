@@ -16,6 +16,9 @@ describe('login retry guard', () => {
     expect(limiter.consume('1', 'a')).toBe(0);
     expect(limiter.consume('1', 'b')).toBe(0);
     expect(limiter.consume('1', 'c')).toBeGreaterThan(0);
+    expect(new LoginLimiter(10, 10, 1000, 1).consume('1', 'a')).toBeGreaterThan(
+      0,
+    );
     const bounded = new LoginLimiter(10, 10, 1000, 2);
     expect(bounded.consume('1', 'a')).toBe(0);
     expect(bounded.consume('2', 'b')).toBeGreaterThan(0);

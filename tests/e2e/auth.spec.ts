@@ -125,7 +125,7 @@ test('login validates input, shows uniform credential errors and handles transpo
     await page.getByLabel('Email', { exact: true }).fill(email);
     await page.getByLabel('Password', { exact: true }).fill('incorrect');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await expect(page.getByRole('alert')).toHaveText(
+    await expect(page.getByRole('main').getByRole('alert')).toHaveText(
       'Invalid email or password.',
     );
   }
@@ -133,7 +133,7 @@ test('login validates input, shows uniform credential errors and handles transpo
   await page.getByLabel('Email', { exact: true }).fill(uploader.email);
   await page.getByLabel('Password', { exact: true }).fill('incorrect');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('alert')).toHaveText(
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText(
     'Unable to reach the server. Please try again.',
   );
 });
@@ -193,7 +193,7 @@ test('login retry limit is visible and cannot be bypassed with forwarded IP head
     .fill('rate-limit-browser@local.test');
   await page.getByLabel('Password', { exact: true }).fill('incorrect');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('alert')).toHaveText(
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText(
     'Too many login attempts. Please try again later.',
   );
 });

@@ -1,17 +1,18 @@
-# GIF Platform — B01
+# GIF Platform — B02
 
 Local modular-monolith development stack: Next.js home, Fastify health API, idle
-worker, PostgreSQL 17, MinIO and Caddy, plus the B01 database foundation. **B02 NOT STARTED.**
+worker, PostgreSQL 17, MinIO and Caddy, with the B01 database and B02 authentication foundation. **B03 NOT STARTED.**
 
 B00 was merged in [PR #1](https://github.com/MiladMahdavi1999/gif-platform/pull/1).
-See [B01 results](docs/implementation/B01-report.md) for current executed checks
-and [B00 results](docs/implementation/B00-report.md) for the baseline.
+B01 was merged in [PR #2](https://github.com/MiladMahdavi1999/gif-platform/pull/2).
+See [B02 results](docs/implementation/B02-report.md) for current checks and
+[B01](docs/implementation/B01-report.md) / [B00](docs/implementation/B00-report.md) for the baselines.
 
 The seven original Phase 03 documents remain unchanged at the repository root;
 `Coding-Agent-Handover.md` and `Implementation-Backlog.md` define this task.
 Implementation choices remain Provisional. The 13 core tables and pure state
-guards exist; authentication, upload, moderation and search HTTP features remain
-unimplemented. The worker remains idle.
+guards exist. Session login and role authorization are implemented; upload,
+moderation workflow and search remain unimplemented. The worker remains idle.
 
 ## Run a clean clone
 
@@ -106,7 +107,7 @@ vector with a GIN index. It updates when title/tags change.
 
 The recommended path stays **full Compose**: root database commands run a
 one-off tooling container on the existing Compose network, using the app image
-built by `pnpm dev`. They never start auth or processing features. Rebuild that
+built by `pnpm dev`. These tooling commands never start HTTP or processing services. Rebuild that
 image with `pnpm dev` after changing database code/migrations.
 
 ```sh
@@ -130,7 +131,7 @@ and a `gif_platform`/`gif_platform_*` database are accepted. Query-string
 connection overrides are refused. Reset also needs the
 exact database name in `--confirm=...`. `NODE_ENV=production` or
 `APP_ENV=production` always refuses seed/reset, including the lifecycle test.
-The API retains its production runtime mode and never receives seed passwords.
+The local HTTP API uses development runtime mode and never receives seed passwords.
 No seed or reset runs at service startup. These guards complement ordinary
 production credential separation; do not point local tooling at a production DB.
 
@@ -180,7 +181,7 @@ queries/updates/GIN planning, append-only audit, production refusal and
 reset→migrate→seed. Unit tests cover seven-axis transition guards separately,
 including self-review, missing rights/derivatives, stale version, invalid
 sequencing and delivery degradation without erasing historical approval.
-There are no B02 authentication endpoints or later feature workflows yet.
+B02 authentication now uses these tables; later media workflows remain unimplemented.
 
 ## Stop, reset and diagnose
 

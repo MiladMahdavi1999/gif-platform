@@ -216,7 +216,7 @@ test('reviewer rejects with reason; simultaneous stale UI conflicts and requires
       reviewer.getByRole('button', { name: 'Reject', exact: true }),
     ).toBeVisible();
     await reviewer.getByRole('button', { name: 'Reject', exact: true }).click();
-    await expect(reviewer.getByRole('alert')).toHaveText(
+    await expect(reviewer.getByRole('main').getByRole('alert')).toHaveText(
       'Choose a reason before rejecting or removing.',
     );
     await reviewer
@@ -262,7 +262,9 @@ test('reviewer rejects with reason; simultaneous stale UI conflicts and requires
     await reviewer
       .getByRole('button', { name: 'Approve', exact: true })
       .click();
-    await expect(reviewer.getByRole('alert')).toContainText('Conflict:');
+    await expect(reviewer.getByRole('main').getByRole('alert')).toContainText(
+      'Conflict:',
+    );
     await expect(
       reviewer.getByRole('button', { name: 'Approve', exact: true }),
     ).toBeDisabled();
@@ -301,14 +303,14 @@ test('reviewer rejects with reason; simultaneous stale UI conflicts and requires
     await reviewer
       .getByRole('button', { name: 'Refresh queue', exact: true })
       .click();
-    await expect(reviewer.getByRole('alert')).toHaveText(
+    await expect(reviewer.getByRole('main').getByRole('alert')).toHaveText(
       'Review service unavailable. Please retry.',
     );
     await reviewer.unroute('**/api/v1/review/queue*');
     await reviewer
       .getByRole('button', { name: 'Refresh queue', exact: true })
       .click();
-    await expect(reviewer.getByRole('alert')).toHaveCount(0);
+    await expect(reviewer.getByRole('main').getByRole('alert')).toHaveCount(0);
   } finally {
     await context.close();
   }

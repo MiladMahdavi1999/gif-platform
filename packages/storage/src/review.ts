@@ -95,7 +95,11 @@ export function createReviewStorage(
           { abortSignal: signal },
         );
         const body = response.Body;
+        const destroy = () =>
+          (body as { destroy?: () => void } | undefined)?.destroy?.();
+        signal.addEventListener('abort', destroy, { once: true });
         try {
+          signal.throwIfAborted();
           check(v, response);
           if (!body)
             throw new ReviewMediaFault(503, 'REVIEW_MEDIA_UNAVAILABLE');
@@ -116,7 +120,8 @@ export function createReviewStorage(
             throw new ReviewMediaFault(409, 'DERIVATIVES_UNVERIFIED');
           return bytes;
         } finally {
-          (body as { destroy?: () => void } | undefined)?.destroy?.();
+          signal.removeEventListener('abort', destroy);
+          destroy();
         }
       });
     },

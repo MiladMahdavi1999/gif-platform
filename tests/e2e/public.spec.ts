@@ -238,9 +238,9 @@ test('public search loading, empty, error and keyboard retry states are accessib
   await page.goto('/?q=absent');
   await expect(page.getByText('Loading GIFs…', { exact: true })).toBeVisible();
   release!();
-  await expect(page.getByRole('alert')).toContainText(
-    'GIFs could not be loaded.',
-  );
+  await expect(
+    page.getByRole('region', { name: 'Discover GIFs' }).getByRole('alert'),
+  ).toContainText('GIFs could not be loaded.');
   await page.unroute('**/api/v1/public/gifs?*');
   const retry = page.getByRole('button', { name: 'Retry search', exact: true });
   await retry.focus();
@@ -249,5 +249,7 @@ test('public search loading, empty, error and keyboard retry states are accessib
     page.getByText('No GIFs found. Try another title or tag.'),
   ).toBeVisible();
   await page.goto('/?q=' + 'x'.repeat(101));
-  await expect(page.getByRole('alert')).toContainText('Check your search');
+  await expect(
+    page.getByRole('region', { name: 'Discover GIFs' }).getByRole('alert'),
+  ).toContainText('Check your search');
 });

@@ -127,7 +127,16 @@ describe('B04 leases on real PostgreSQL with restricted worker identity', () => 
     expect(leases.filter(Boolean)).toHaveLength(1);
     const lease = leases.find(Boolean)!;
     expect(lease.versionId).toBe('pinned-version');
-    await repo.succeed(lease, outputs(id), 'c'.repeat(64));
+    const completions = await Promise.allSettled([
+      repo.succeed(lease, outputs(id), 'c'.repeat(64)),
+      second.succeed(lease, outputs(id), 'c'.repeat(64)),
+    ]);
+    expect(completions.filter((v) => v.status === 'fulfilled')).toHaveLength(1);
+    expect(
+      completions.filter(
+        (v) => v.status === 'rejected' && v.reason instanceof StaleLease,
+      ),
+    ).toHaveLength(1);
     expect(
       (await pool.query('SELECT * FROM asset_states WHERE asset_id=$1', [id]))
         .rows[0],

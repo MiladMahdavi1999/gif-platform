@@ -1,5 +1,25 @@
 import { execFileSync } from 'node:child_process';
 process.loadEnvFile('.env');
+const composeArgs = [
+  'compose',
+  '--env-file',
+  '.env',
+  '-f',
+  'infra/compose.yaml',
+];
+const running = execFileSync(
+  'docker',
+  [...composeArgs, 'ps', '--status', 'running', '--services'],
+  { encoding: 'utf8' },
+)
+  .trim()
+  .split('\n');
+if (
+  !['api', 'web', 'worker', 'db', 'minio', 'edge'].every((service) =>
+    running.includes(service),
+  )
+)
+  throw new Error('All six services must be running for the runtime log check');
 const origin = process.env.PUBLIC_BASE_URL;
 const response = await fetch(`${origin}/api/v1/auth/login`, {
   method: 'POST',
@@ -31,6 +51,7 @@ const logs = execFileSync(
   ],
   { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 },
 );
+if (!logs.trim()) throw new Error('Runtime logs are missing');
 for (const value of [
   cookie.split('=')[1],
   body.csrfToken,

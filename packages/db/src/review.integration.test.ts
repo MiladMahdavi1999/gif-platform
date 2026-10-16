@@ -113,6 +113,8 @@ const app = createApp(
 );
 type Account = { cookie: string; csrf: string; id: string };
 let uploader: Account, reviewer: Account, second: Account;
+const fixtureUploaders: Account[] = [];
+let fixtureNumber = 0;
 let created = false,
   storageCreated = false;
 beforeAll(async () => {
@@ -149,6 +151,16 @@ beforeAll(async () => {
   uploader = await login('uploader@local.test');
   reviewer = await login('reviewer@local.test');
   second = await login('second@local.test');
+  const auxiliary = (
+    await pool.query(
+      "INSERT INTO users(email,password_hash) SELECT 'auxiliary@local.test',password_hash FROM users WHERE email='uploader@local.test' RETURNING id",
+    )
+  ).rows[0];
+  await pool.query(
+    "INSERT INTO role_grants(user_id,role) VALUES($1,'UPLOADER')",
+    [auxiliary.id],
+  );
+  fixtureUploaders.push(uploader, await login('auxiliary@local.test'));
 });
 afterAll(async () => {
   await app.close();
@@ -218,11 +230,14 @@ const decision = (
       ...extra,
     },
   });
-async function fixture(process = true) {
+async function fixture(
+  process = true,
+  owner = fixtureUploaders[fixtureNumber++ % fixtureUploaders.length]!,
+) {
   const intent = await app.inject({
     method: 'POST',
     url: '/api/v1/uploads',
-    headers: { ...headers(uploader), 'idempotency-key': randomUUID() },
+    headers: { ...headers(owner), 'idempotency-key': randomUUID() },
     payload: {
       kind: 'GIF',
       title: `B05 original ${randomUUID()}`,
@@ -250,7 +265,7 @@ async function fixture(process = true) {
       await app.inject({
         method: 'POST',
         url: `/api/v1/uploads/${value.uploadId}/complete`,
-        headers: headers(uploader),
+        headers: headers(owner),
         payload: {},
       })
     ).statusCode,
@@ -701,7 +716,7 @@ describe('B05 real PostgreSQL/MinIO/processed GIF review', () => {
     }
   });
   it('dual-role owners cannot approve/reject/remove their own assets; revoked reviewer cannot decide', async () => {
-    const id = await fixture();
+    const id = await fixture(true, uploader);
     await pool.query(
       "INSERT INTO role_grants(user_id,role) VALUES($1,'REVIEWER')",
       [uploader.id],

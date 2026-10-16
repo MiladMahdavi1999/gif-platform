@@ -54,7 +54,8 @@ export function createPublicRepository(
     connectionString,
     max: 5,
     connectionTimeoutMillis: 1500,
-    query_timeout: 5000,
+    query_timeout: 5500,
+    statement_timeout: 5000,
   });
   pool.on('error', () => {});
   const cursors = createPublicCursor(cursorSecret);
@@ -123,6 +124,8 @@ export function createPublicRepository(
       alias: 'display.gif' | 'poster.png',
       requestId: string,
     ) {
+      // UUID spelling must not turn valid lowercase descriptors into false degradation.
+      id = id.toLowerCase();
       await repository.authorize(id);
       const values = await loadReviewVariants(pool, id);
       try {

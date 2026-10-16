@@ -344,6 +344,8 @@ describe('B06 real PostgreSQL/MinIO/FFmpeg public discovery and origin', () => {
         /@local|objectKey|objectVersion|quarantine|gif-b06|password|email|https?:\/\//,
       );
     }
+    expect((await media(id.toUpperCase())).statusCode).toBe(200);
+    expect((await snapshot(id)).delivery_readiness_state).toBe('READY');
     const response = await publicDetail(id);
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({

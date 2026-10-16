@@ -31,7 +31,7 @@ export function Gallery() {
   const params = useSearchParams();
   const q = params.get('q') ?? '';
   const tag = params.get('tag') ?? '';
-  return <SearchGallery key={`${q}:${tag}`} q={q} tag={tag} />;
+  return <SearchGallery key={JSON.stringify([q, tag])} q={q} tag={tag} />;
 }
 function SearchGallery({ q, tag }: { q: string; tag: string }) {
   const router = useRouter();
@@ -99,7 +99,7 @@ function SearchGallery({ q, tag }: { q: string; tag: string }) {
       <h2 id="gallery-title">Discover GIFs</h2>
       <form
         className="search-form"
-        key={`${q}:${tag}`}
+        key={JSON.stringify([q, tag])}
         onSubmit={(event) => {
           event.preventDefault();
           const values = new FormData(event.currentTarget);

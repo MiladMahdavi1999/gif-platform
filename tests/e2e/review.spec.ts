@@ -200,7 +200,7 @@ test('reviewer rejects with reason; simultaneous stale UI conflicts and requires
 }) => {
   test.setTimeout(90000);
   const page = await uploaderContext.newPage();
-  const asset = await upload(page);
+  let asset = await upload(page);
   const context = await browser.newContext({
     baseURL: 'http://localhost:8080',
   });
@@ -219,6 +219,26 @@ test('reviewer rejects with reason; simultaneous stale UI conflicts and requires
     await expect(reviewer.getByRole('alert')).toHaveText(
       'Choose a reason before rejecting or removing.',
     );
+    await reviewer
+      .getByLabel('Reason', { exact: true })
+      .selectOption('RIGHTS_CONCERN');
+    await reviewer
+      .getByLabel('Optional notes')
+      .fill('Browser UI rights review');
+    await reviewer.getByRole('button', { name: 'Reject', exact: true }).click();
+    await expect(
+      reviewer.getByText('Decision saved: REJECTED.', { exact: true }),
+    ).toBeVisible();
+    await expect(reviewer.getByText('REJECTED', { exact: true })).toBeVisible();
+    // A separate processed asset exercises the stale version recovery path.
+    asset = await upload(page);
+    await reviewer.getByLabel('Asset ID', { exact: true }).fill(asset.id);
+    await reviewer
+      .getByRole('button', { name: 'Open asset', exact: true })
+      .click();
+    await expect(
+      reviewer.getByRole('button', { name: 'Approve', exact: true }),
+    ).toBeVisible();
     // Another real HTTP decision wins while this browser retains version 1.
     const session = await (
       await reviewer.request.get('/api/v1/auth/session')

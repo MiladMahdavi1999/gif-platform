@@ -12,5 +12,9 @@
   force an unsupported peer combination.
 - Runtime images use exact version tags rather than immutable digests. This is
   a local development bootstrap; production image hardening is not B00 scope.
-- Domain integration, DB migration and seed are intentionally unimplemented and
-  exit 1. B01 and later tasks are not started.
+- The original B00 database placeholders were replaced and verified in B01.
+  B02 now supplies authentication; later media workflows remain unimplemented.
+- B02 login rate limits are bounded and process-local. Shared limits and a
+  reviewed proxy trust policy remain prerequisites for multiple API instances.
+  Production provisioning, session retention and operator policy are outside
+  this task. See [B02-report.md](B02-report.md) for current execution evidence.

@@ -28,3 +28,4 @@ export function createDatabaseProbe(connectionString: string) {
     close: () => pool.end(),
   };
 }
+export * from './auth.js';

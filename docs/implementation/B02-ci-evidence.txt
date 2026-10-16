@@ -1,0 +1,39 @@
+B02 — verified execution evidence
+Code/test commit: bae852d694b1d1b11ee006c809f2afda06be782f
+CI run: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/38896507610
+Full-stack job: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/38896507610/job/116958145015
+PostgreSQL job: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/38896507610/job/116958144725
+Both jobs completed successfully. Secret-bearing traces/videos disabled.
+
+Observed full-stack result lines:
+Test Files  6 passed (6)
+Tests  58 passed (58)
+OpenAPI matches implemented contracts
+PASS: single-origin home, liveness and dependency readiness
+8 passed (3.9s)
+B02 runtime logs contain no tested passwords, session token or CSRF token
+PASS: db stopped -> readiness 503, liveness 200, browser unavailable
+PASS: db restored -> readiness 200, browser ready
+PASS: minio stopped -> readiness 503, liveness 200, browser unavailable
+PASS: minio restored -> readiness 200, browser ready
+PASS: API stopped -> edge 502, home still renders, browser unavailable
+PASS: API restored -> readiness 200, browser ready
+PASS: worker SIGTERM exits 0 and records graceful shutdown
+PASS: all six service logs exclude configured credentials/DB URL
+PASS: single-origin home, liveness and dependency readiness
+PASS: fresh local volumes reboot all six services and readiness 200
+
+Observed PostgreSQL result lines:
+Everything's fine 🐶🔥
+No schema changes, nothing to migrate 😴
+Test Files  2 passed (2)
+Tests  23 passed (23)
+
+Local verification: format/lint/typecheck/build/OpenAPI/schema checks, 58 unit
+tests, 23 PostgreSQL tests, and 5 auth browser tests passed. Local full-stack
+build blocked by MinIO Go-module downloads denied at storage.googleapis.com.
+The CI full-stack pass is distinct from local hybrid browser verification.
+
+The final follow-up commit records documentation/evidence only.
+No original architecture document or SQL migration changed. B03 NOT STARTED.
+

@@ -1,4 +1,4 @@
-name: B00 and B01 checks
+name: B00 B01 and B02 checks
 on:
   push:
   pull_request:
@@ -22,6 +22,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm api:check
       - run: pnpm build
       - run: cp .env.example .env
       - run: pnpm dev
@@ -37,6 +38,7 @@ jobs:
       - run: pnpm test:smoke
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+      - run: node scripts/test-auth-log-hygiene.mjs
       - run: node scripts/test-dependency-failures.mjs
       - run: node scripts/test-local-lifecycle.mjs --confirm=gif_platform
       - run: pnpm db:migrate
@@ -45,7 +47,7 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: b00-browser-evidence
+          name: b02-browser-evidence
           path: test-results/
           if-no-files-found: ignore
       - if: always()

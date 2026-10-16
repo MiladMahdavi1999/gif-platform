@@ -1,17 +1,18 @@
-# GIF Platform — B01
+# GIF Platform — B02
 
 Local modular-monolith development stack: Next.js home, Fastify health API, idle
-worker, PostgreSQL 17, MinIO and Caddy, plus the B01 database foundation. **B02 NOT STARTED.**
+worker, PostgreSQL 17, MinIO and Caddy, with the B01 database and B02 authentication foundation. **B03 NOT STARTED.**
 
 B00 was merged in [PR #1](https://github.com/MiladMahdavi1999/gif-platform/pull/1).
-See [B01 results](docs/implementation/B01-report.md) for current executed checks
-and [B00 results](docs/implementation/B00-report.md) for the baseline.
+B01 was merged in [PR #2](https://github.com/MiladMahdavi1999/gif-platform/pull/2).
+See [B02 results](docs/implementation/B02-report.md) for current checks and
+[B01](docs/implementation/B01-report.md) / [B00](docs/implementation/B00-report.md) for the baselines.
 
 The seven original Phase 03 documents remain unchanged at the repository root;
 `Coding-Agent-Handover.md` and `Implementation-Backlog.md` define this task.
 Implementation choices remain Provisional. The 13 core tables and pure state
-guards exist; authentication, upload, moderation and search HTTP features remain
-unimplemented. The worker remains idle.
+guards exist. Session login and role authorization are implemented; upload,
+moderation workflow and search remain unimplemented. The worker remains idle.
 
 ## Run a clean clone
 
@@ -106,7 +107,7 @@ vector with a GIN index. It updates when title/tags change.
 
 The recommended path stays **full Compose**: root database commands run a
 one-off tooling container on the existing Compose network, using the app image
-built by `pnpm dev`. They never start auth or processing features. Rebuild that
+built by `pnpm dev`. These tooling commands never start HTTP or processing services. Rebuild that
 image with `pnpm dev` after changing database code/migrations.
 
 ```sh
@@ -130,7 +131,7 @@ and a `gif_platform`/`gif_platform_*` database are accepted. Query-string
 connection overrides are refused. Reset also needs the
 exact database name in `--confirm=...`. `NODE_ENV=production` or
 `APP_ENV=production` always refuses seed/reset, including the lifecycle test.
-The API retains its production runtime mode and never receives seed passwords.
+The local HTTP API uses development runtime mode and never receives seed passwords.
 No seed or reset runs at service startup. These guards complement ordinary
 production credential separation; do not point local tooling at a production DB.
 
@@ -180,7 +181,7 @@ queries/updates/GIN planning, append-only audit, production refusal and
 reset→migrate→seed. Unit tests cover seven-axis transition guards separately,
 including self-review, missing rights/derivatives, stale version, invalid
 sequencing and delivery degradation without erasing historical approval.
-There are no B02 authentication endpoints or later feature workflows yet.
+B02 authentication now uses these tables; later media workflows remain unimplemented.
 
 ## Stop, reset and diagnose
 
@@ -235,3 +236,55 @@ CI runs the same checks plus PostgreSQL integration, migration drift, Compose,
 browser and real failure tests. A configured
 workflow is not evidence that a remote CI run passed. Executed B01 results and gaps are in
 [docs/implementation/B01-report.md](docs/implementation/B01-report.md).
+
+## B02 authentication checkpoint
+
+B02 adds `/login`, sign out, session restoration and a protected `/review` access
+check. The public home and dependency health checks remain available anonymously.
+Use the two distinct **B01** seed accounts configured in your ignored `.env`;
+passwords are never printed. Run `pnpm db:migrate` and `pnpm db:seed:dev` before
+signing in. The seed is opt-in development tooling and does not reset an existing
+account password. No moderation actions or media workflow are implemented.
+
+- `POST /api/v1/auth/login`: strict JSON `{email,password}` and exact configured
+  `Origin`; returns the user and session-bound CSRF token, sets HttpOnly cookie.
+- `GET /api/v1/auth/session`: optional cookie, returns authenticated status and
+  user/CSRF only for a currently valid session.
+- `POST /api/v1/auth/logout`: requires current cookie, exact `Origin` and
+  `X-CSRF-Token`; revokes server-side and clears cookie. No body or `{}` only.
+- `GET /api/v1/review`: reviewer-only B02 stub; anonymous 401, uploader 403,
+  explicit REVIEWER grant 200. ADMIN has no implicit reviewer delegation.
+- `/review` returns those same HTTP statuses through an uncached web route.
+
+The browser uses the Caddy origin, with no cross-origin credentialed CORS.
+`PUBLIC_BASE_URL` must be an exact origin (no trailing slash/path). Optional
+`CSRF_ORIGIN` must match it. Non-development API runtimes require HTTPS.
+The local Compose API explicitly runs in **development** mode for HTTP; the
+compiled web and worker images retain their production runtime. HTTPS sessions
+always set `Secure`; all session cookies set `HttpOnly; SameSite=Lax; Path=/`,
+with no Domain attribute. `SESSION_COOKIE_NAME` defaults to `gif_session` and
+`SESSION_TTL_SECONDS` defaults to 86400 (absolute expiry, no sliding renewal).
+
+Provisional retry defaults: 10 attempts per normalized account and 50 per peer IP
+per 15 minutes, including successful attempts. `429` includes `Retry-After`.
+Buckets are bounded and process-local; restarting the API resets them. Forwarded
+IP headers are not trusted, so local Caddy clients share the peer-IP budget.
+A distributed limiter and a reviewed trusted-proxy policy are required before
+multi-instance internet deployment. No automatic credential retry is performed.
+
+Additional verification:
+
+```sh
+pnpm api:generate  # regenerate docs/api/openapi.json from implemented DTOs
+pnpm api:check     # drift check, also in CI
+# Full stack started, migrated and seeded first:
+pnpm test:e2e
+node scripts/test-auth-log-hygiene.mjs
+```
+
+`pnpm test:integration` now also runs B02 API tests against a real, disposable
+PostgreSQL database with B01 migrations/seed (same opt-in/URL requirements as
+above). Browser auth tests disable traces/video to keep credentials and session
+values out of retained evidence. Never enable authentication request traces or
+commit browser storage state. See `docs/implementation/B02-report.md` for actual
+local/CI results and Provisional implementation choices. **B03 NOT STARTED.**

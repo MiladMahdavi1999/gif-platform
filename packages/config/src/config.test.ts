@@ -47,11 +47,18 @@ describe('configuration', () => {
       'Invalid configuration fields: DATABASE_URL, S3_SECRET_ACCESS_KEY',
     );
   });
-  it('validates the no-op worker without requiring future job settings', () => {
-    expect(readWorkerConfig({ NODE_ENV: 'production' })).toEqual({
-      NODE_ENV: 'production',
-    });
-    expect(() => readWorkerConfig({ NODE_ENV: 'invalid' })).toThrow(/NODE_ENV/);
+  it('requires worker dependencies and bounds leases, attempts and decoder budgets', () => {
+    expect(readWorkerConfig(valid).MEDIA_JOB_MAX_ATTEMPTS).toBe(3);
+    expect(() => readWorkerConfig({})).toThrow(/DATABASE_URL/);
+    for (const patch of [
+      { MEDIA_JOB_MAX_ATTEMPTS: '0' },
+      { MEDIA_JOB_LEASE_SECONDS: '0' },
+      { MAX_GIF_FRAMES: '100000' },
+      { MEDIA_EXECUTION_TIMEOUT_MS: '0' },
+    ])
+      expect(() => readWorkerConfig({ ...valid, ...patch })).toThrow(
+        /Invalid worker/,
+      );
   });
 });
 

@@ -76,8 +76,7 @@ test('browser uploads directly to localhost:9000, confirms private receipt and p
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
   await expect(
     page.getByText(
-      'Received privately. Processing queued; not processed or published.',
-      { exact: true },
+      /Received privately\. Processing queued|Processing in progress|Processing succeeded\. Private derivatives/,
     ),
   ).toBeVisible();
   const receiptUrl = page.url();

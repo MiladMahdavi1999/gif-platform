@@ -117,12 +117,17 @@ export async function provisionPrivateStorage(config: StorageConfig) {
       }
       await client.send(new DeleteBucketPolicyCommand({ Bucket }));
     }
-    await client.send(
-      new PutBucketVersioningCommand({
-        Bucket: config.S3_QUARANTINE_BUCKET,
-        VersioningConfiguration: { Status: 'Enabled' },
-      }),
-    );
+    for (const Bucket of [
+      config.S3_QUARANTINE_BUCKET,
+      config.S3_DERIVATIVES_BUCKET,
+    ]) {
+      await client.send(
+        new PutBucketVersioningCommand({
+          Bucket,
+          VersioningConfiguration: { Status: 'Enabled' },
+        }),
+      );
+    }
   } finally {
     client.destroy();
   }

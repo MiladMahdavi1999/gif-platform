@@ -1,7 +1,7 @@
 # GIF Platform — B03
 
 Local modular-monolith development stack: Next.js home, Fastify health API, idle
-worker, PostgreSQL 17, MinIO and Caddy, with authenticated direct uploads and durable private receipts. **B04 NOT STARTED.**
+worker, PostgreSQL 17, MinIO and Caddy, with authenticated direct uploads, durable private receipts and a lease-based private GIF processor. **B05 NOT STARTED.**
 
 B00 was merged in [PR #1](https://github.com/MiladMahdavi1999/gif-platform/pull/1).
 B01 was merged in [PR #2](https://github.com/MiladMahdavi1999/gif-platform/pull/2).
@@ -13,7 +13,7 @@ The seven original Phase 03 documents remain unchanged at the repository root;
 `Coding-Agent-Handover.md` and `Implementation-Backlog.md` define this task.
 Implementation choices remain Provisional. The 13 core tables and pure state
 guards exist. Session login, owner receipts and real private S3 uploads are implemented.
-Processing, moderation workflow, public search and Picker remain unimplemented. The worker remains idle.
+The worker decodes and re-encodes GIFs into verified private derivatives. Moderation workflow, public search/media delivery and Picker remain unimplemented.
 
 ## Run a clean clone
 
@@ -39,8 +39,7 @@ Open **http://localhost:8080**. The heading reads
 every five seconds and displays failures honestly. JavaScript is required for
 the live indicator; the initial server-rendered state is “Checking dependencies…”.
 
-All six services must become healthy. The worker's health means its **idle loop
-is alive**, not that it can process jobs. The first MinIO source build takes
+All six services must become healthy. The worker's health means its **poll loop is alive**. Database/schema/storage failures are retried and logged as safe dependency failures; inspect the owner receipt for processing outcomes. The first MinIO source build takes
 longer than a normal image pull. Its pinned source release and rationale are in
 [infra/minio/README.md](infra/minio/README.md).
 
@@ -182,7 +181,7 @@ queries/updates/GIN planning, append-only audit, production refusal and
 reset→migrate→seed. Unit tests cover seven-axis transition guards separately,
 including self-review, missing rights/derivatives, stale version, invalid
 sequencing and delivery degradation without erasing historical approval.
-B02 authentication and B03 private receipts use these tables; processing remains unimplemented.
+B02 authentication, B03 private receipts and B04 leased processing use these tables.
 
 ## Stop, reset and diagnose
 
@@ -216,7 +215,7 @@ Container bases use exact release tags: Node 24.19.0 bookworm-slim, PostgreSQL
 17.6 bookworm, Caddy 2.10.2 alpine and Go 1.24.8 bookworm for the pinned MinIO
 source build. These are local development images, not a production deployment
 approval. Drizzle ORM 0.45.4, Drizzle Kit 0.31.11 and Argon2 2.2.2 are pinned for B01; AWS S3 SDK 3.922.0 object operations and bucket
-provisioning are implemented in B03; FFmpeg starts in B04. Pure domain state guards reserve the later feature boundaries.
+provisioning are implemented in B03; constrained FFmpeg processing is implemented in B04. Pure domain state guards reserve the later feature boundaries.
 
 Web imports only browser-safe contracts. ESLint blocks DB/storage imports into
 web and API/web framework imports into worker. Packages compile to ESM with
@@ -245,7 +244,7 @@ check. The public home and dependency health checks remain available anonymously
 Use the two distinct **B01** seed accounts configured in your ignored `.env`;
 passwords are never printed. Run `pnpm db:migrate` and `pnpm db:seed:dev` before
 signing in. The seed is opt-in development tooling and does not reset an existing
-account password. No moderation actions or processing are implemented.
+account password. No moderation decisions are implemented. Processing produces private derivatives only.
 
 - `POST /api/v1/auth/login`: strict JSON `{email,password}` and exact configured
   `Origin`; returns the user and session-bound CSRF token, sets HttpOnly cookie.
@@ -288,7 +287,7 @@ PostgreSQL database with B01 migrations/seed (same opt-in/URL requirements as
 above). Browser auth tests disable traces/video to keep credentials and session
 values out of retained evidence. Never enable authentication request traces or
 commit browser storage state. See `docs/implementation/B02-report.md` for actual
-local/CI baseline results and Provisional implementation choices. **B04 NOT STARTED.**
+local/CI baseline results and Provisional implementation choices. **B05 NOT STARTED.**
 
 ## B03 private upload checkpoint
 
@@ -304,7 +303,7 @@ Open `/studio/assets` for your owner-only receipt list or
 `/studio/assets/:assetId` for eight separate state axes. Refresh restores the
 receipt from PostgreSQL. Originals have no preview or download link. Expected
 final B03 state: `RECEIVED / QUEUED / PRIVATE / INELIGIBLE / NOT_INDEXED / BLOCKED /
-NOT_READY / NOT_REQUESTED`. The worker leaves every job `READY`, attempt count 0.
+NOT_READY / NOT_REQUESTED`. B03 enqueues `READY`, attempt count 0; B04 subsequently claims it.
 
 Implemented endpoints (shared schemas and generated OpenAPI in `docs/api/`):
 
@@ -335,8 +334,7 @@ HTTPS. `S3_PUBLIC_ENDPOINT` is used when signing and `S3_INTERNAL_ENDPOINT` for 
 **Provisional safeguard:** migration `0002_upload_receipt_version.sql` adds
 `received_version_id`. The receipt pins its HEAD-verified MinIO version and ETag;
 a still-valid form replay can create another private version but cannot replace
-the version in the durable receipt. B04 must consume this pinned version, not the
-latest object. No media processing has been added in B03.
+the version in the durable receipt. B04 consumes this pinned version for every download. B03 itself does not decode media.
 
 **Provisional limit:** 20 new intents per owner per 15 minutes, persisted and
 serialized by an owner-row lock across API processes. Existing-key retries do not
@@ -369,6 +367,18 @@ and upload traces/video are disabled so cookies and signed forms are not retaine
 CI also retains a credential-free pinned MinIO image artifact for one day to help
 reproduce verification when a managed executor cannot build Go dependencies.
 
-There is no automatic approval, processing, publication, search or media delivery.
+There is no automatic approval, publication, search or media delivery. B04 adds private processing only.
 Expired/unreferenced objects and old versions stay private; audited retention and
-orphan cleanup require a later operational task. **B04 NOT STARTED.**
+orphan cleanup require a later operational task. **B05 NOT STARTED.**
+
+## B04 private GIF processing
+
+`pnpm db:seed:dev` now explicitly provisions a separate local PostgreSQL worker login from `WORKER_DATABASE_URL` after migrations. Copy the new `.env.example` setting when upgrading an existing local `.env`, then rebuild, migrate and seed using the commands above. Existing B00–B03 SQL history is unchanged; migration 0003 adds derivative versions/frame metadata and a fixed PENDING-only review command. Production worker role provisioning is operator-owned.
+
+The worker claims due jobs with PostgreSQL `FOR UPDATE SKIP LOCKED`, heartbeats token-fenced leases, and recovers expired jobs with at most three attempts. Source GETs include the exact B03 `VersionId` and `IfMatch`. A sanitized animated GIF and first-frame PNG are uploaded conditionally to private content-addressed keys, SHA-256/HEAD checked and committed with states, audit and completed job in one valid-lease transaction. Success means `SUCCEEDED / READY / PENDING`, with visibility PRIVATE, search INELIGIBLE, indexing NOT_INDEXED and API BLOCKED. Owner receipts poll during queued/running/retry states and display real success/failure after refresh, without media URLs.
+
+The pinned worker uses FFmpeg **5.1.9** (`7:5.1.9-0+deb12u1`). Decoder children receive only inherited input/output pipes and a minimal environment. A Linux seccomp constructor denies file opens, network sockets, process creation (threads only), exec and cross-process inspection; hard limits bound address space (1 GiB), CPU (20 seconds), descriptors, process count and core dumps. The worker container is unprivileged, read-only, capability-free, limited to one CPU/1536 MiB/64 tasks and 100 MiB temporary storage. Fixed arguments force GIF/PNG demuxers and pipe-only protocols; no shell or remote URLs. Unsupported sandbox setup fails closed.
+
+Provisional defaults: 20 MiB input/per-output, 4096 per dimension, 16M pixels, 300 frames, 30 seconds duration, 10 seconds per decoder call, 60 seconds per job, 30-second leases and one-second polls. All are validated configuration settings (see `.env.example`). The receipt reports typed terminal errors; storage/infrastructure failures retry with bounded exponential backoff and jitter.
+
+Linux local checks require `cc`, `ffmpeg` and `ffprobe` in `/usr/bin`; `pnpm test` and `pnpm test:integration` compile the decoder boundary and its probe. Full integration requires the existing PostgreSQL/MinIO opt-ins and credentials documented above. The browser suite additionally stops/restarts the real Compose worker and retains private pending/success/failure screenshots. See [B04 report](docs/implementation/B04-report.md) for exact commands, execution location, crash/concurrency evidence and gaps. **B05 NOT STARTED.**

@@ -12,3 +12,4 @@ test-results/
 *.tsbuildinfo
 **/next-env.d.ts
 work/
+infra/decoder/sandbox.so

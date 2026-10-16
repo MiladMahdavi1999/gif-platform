@@ -6,6 +6,7 @@ import {
   seedDevelopment,
 } from './dev.js';
 import { resetDevelopment } from './reset.js';
+import { provisionDevelopmentWorker } from './worker-access.js';
 
 async function main() {
   const command = process.argv[2];
@@ -24,7 +25,11 @@ async function main() {
     const client = await pool.connect();
     try {
       if (command === 'migrate') await migrate(client);
-      if (command === 'seed') await seedDevelopment(client, process.env);
+      if (command === 'seed') {
+        await seedDevelopment(client, process.env);
+        if (process.env.WORKER_DATABASE_URL)
+          await provisionDevelopmentWorker(process.env);
+      }
       if (command === 'reset')
         await resetDevelopment(client, process.env, process.argv[3]);
       if (command === 'inspect')

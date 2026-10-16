@@ -240,6 +240,8 @@ export const assetVariants = pgTable(
       .notNull()
       .references(() => assets.id, { onDelete: 'cascade' }),
     renditionVersion: integer('rendition_version').notNull(),
+    objectVersionId: text('object_version_id'),
+    frameCount: integer('frame_count'),
     name: text('name').notNull(),
     objectKey: text('object_key').notNull().unique(),
     mimeType: text('mime_type').notNull(),

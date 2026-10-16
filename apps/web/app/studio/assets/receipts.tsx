@@ -19,8 +19,13 @@ export function AssetReceipts({ assetId }: { assetId?: string }) {
     const endpoint = assetId
       ? `/api/v1/me/assets/${encodeURIComponent(assetId)}`
       : `/api/v1/me/assets${cursor ? `?cursor=${cursor}` : ''}`;
-    fetch(endpoint, { cache: 'no-store', signal: controller.signal })
-      .then(async (response) => {
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const response = await fetch(endpoint, {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
         if (!response.ok)
           throw new Error(
             response.status === 404
@@ -30,22 +35,37 @@ export function AssetReceipts({ assetId }: { assetId?: string }) {
                 : 'Unable to load receipts. Refresh to retry.',
           );
         const data = await response.json();
-        if (assetId) setItems([ownerAssetSchema.parse(data)]);
+        let values: OwnerAsset[];
+        if (assetId) values = [ownerAssetSchema.parse(data)];
         else {
           const list = ownerAssetsSchema.parse(data);
-          setItems(
-            list.items.map(({ id, ...rest }) => ({ assetId: id, ...rest })),
-          );
+          values = list.items.map(({ id, ...rest }) => ({
+            assetId: id,
+            ...rest,
+          }));
           setNextCursor(list.nextCursor);
         }
-      })
-      .catch((cause) => {
+        if (controller.signal.aborted) return;
+        setError('');
+        setItems(values);
+        if (
+          values.some((v) =>
+            ['QUEUED', 'RUNNING', 'FAILED_RETRYABLE'].includes(
+              v.states.processing,
+            ),
+          )
+        )
+          timer = setTimeout(poll, 1500);
+      } catch {
         if (!controller.signal.aborted)
-          setError(
-            cause instanceof Error ? cause.message : 'Unable to load receipts.',
-          );
-      });
-    return () => controller.abort();
+          setError('Unable to load receipts. Refresh to retry.');
+      }
+    };
+    void poll();
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
   }, [session, assetId, cursor]);
   if (sessionError || error) return <p role="alert">{sessionError || error}</p>;
   if (session && !session.authenticated)
@@ -58,8 +78,8 @@ export function AssetReceipts({ assetId }: { assetId?: string }) {
   return (
     <>
       <p role="status">
-        Originals remain in private quarantine. Received files are queued;
-        Processing is not running in this environment. Files are not published.
+        Originals and processed derivatives remain private. Files are not
+        published.
       </p>
       {items.length === 0 && <p>No private receipts yet.</p>}
       {items.map((item) => (
@@ -82,11 +102,19 @@ export function AssetReceipts({ assetId }: { assetId?: string }) {
           </dl>
           {item.errorCode && <p role="alert">{item.errorCode}</p>}
           <p>
-            {item.states.upload === 'RECEIVED'
-              ? 'Received privately. Processing queued; not processed or published.'
-              : item.states.upload === 'EXPIRED'
-                ? 'Upload expired before receipt. Start a new upload.'
-                : 'Upload not yet received. No processing or publication.'}
+            {item.states.processing === 'SUCCEEDED'
+              ? 'Processing succeeded. Private derivatives are ready for human moderation; not published.'
+              : item.states.processing === 'FAILED_TERMINAL'
+                ? 'Processing failed. This file cannot be processed. Start a new upload; nothing is published.'
+                : item.states.processing === 'FAILED_RETRYABLE'
+                  ? 'Processing interrupted. A retry is scheduled; not published.'
+                  : item.states.processing === 'RUNNING'
+                    ? 'Processing in progress; not published.'
+                    : item.states.upload === 'RECEIVED'
+                      ? 'Received privately. Processing queued; not processed or published.'
+                      : item.states.upload === 'EXPIRED'
+                        ? 'Upload expired before receipt. Start a new upload.'
+                        : 'Upload not yet received. No processing or publication.'}
           </p>
         </article>
       ))}

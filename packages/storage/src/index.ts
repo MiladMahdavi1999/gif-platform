@@ -7,3 +7,4 @@ export async function checkObjectStore(endpoint: string): Promise<void> {
   await response.body?.cancel();
   if (!response.ok) throw new Error('Object store is unavailable');
 }
+export * from './processing.js';

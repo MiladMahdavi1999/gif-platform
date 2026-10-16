@@ -39,6 +39,26 @@ export const apiConfigSchema = common.extend({
   S3_REGION: z.string().min(1),
   S3_ACCESS_KEY_ID: z.string().min(3),
   S3_SECRET_ACCESS_KEY: z.string().min(8),
+  S3_QUARANTINE_BUCKET: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/)
+    .default('gif-quarantine'),
+  S3_DERIVATIVES_BUCKET: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/)
+    .default('gif-processed'),
+  MEDIA_UPLOAD_POLICY_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(3600)
+    .default(600),
+  MAX_GIF_UPLOAD_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(20971520)
+    .default(20971520),
 });
 
 export type ApiConfig = z.infer<typeof apiConfigSchema>;
@@ -62,6 +82,18 @@ export function readApiConfig(env: NodeJS.ProcessEnv): ApiConfig {
     throw new Error(
       'Invalid configuration fields: PUBLIC_BASE_URL, CSRF_ORIGIN',
     );
+  if (config.S3_QUARANTINE_BUCKET === config.S3_DERIVATIVES_BUCKET)
+    throw new Error(
+      'Invalid configuration fields: S3_QUARANTINE_BUCKET, S3_DERIVATIVES_BUCKET',
+    );
+  for (const key of ['S3_INTERNAL_ENDPOINT', 'S3_PUBLIC_ENDPOINT'] as const) {
+    const url = new URL(config[key]);
+    if (
+      url.origin !== config[key] ||
+      (config.NODE_ENV !== 'development' && url.protocol !== 'https:')
+    )
+      throw new Error(`Invalid configuration fields: ${key}`);
+  }
   return config;
 }
 

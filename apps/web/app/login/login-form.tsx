@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 
 import { useEffect, useState, type FormEvent } from 'react';
 import {
@@ -100,7 +101,9 @@ export function LoginForm() {
           <p role="status">Signed in as {session.user.email}</p>
           <p>Roles: {session.user.roles.join(', ')}</p>
           <p>
-            <a href="/review">Review access check</a>
+            <Link href="/studio/upload">Upload GIF</Link> ·{' '}
+            <Link href="/studio/assets">My receipts</Link> ·{' '}
+            <Link href="/review">Review access check</Link>
           </p>
           <button type="button" disabled={busy} onClick={logout}>
             {busy ? 'Signing out…' : 'Sign out'}

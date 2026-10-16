@@ -55,3 +55,29 @@ button:disabled {
 [role='alert'] {
   color: #ffc3bd;
 }
+progress {
+  display: block;
+  width: min(100%, 25rem);
+  margin-block: 1rem;
+}
+article {
+  border-top: 1px solid #698395;
+  margin-block: 2rem;
+  padding-block: 1rem;
+}
+dl > div {
+  display: flex;
+  gap: 1rem;
+  margin-block: 0.5rem;
+}
+dt {
+  min-width: 10rem;
+  font-weight: 600;
+}
+dd {
+  margin: 0;
+}
+input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+}

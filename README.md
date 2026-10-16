@@ -1,18 +1,19 @@
-# GIF Platform — B02
+# GIF Platform — B03
 
 Local modular-monolith development stack: Next.js home, Fastify health API, idle
-worker, PostgreSQL 17, MinIO and Caddy, with the B01 database and B02 authentication foundation. **B03 NOT STARTED.**
+worker, PostgreSQL 17, MinIO and Caddy, with authenticated direct uploads and durable private receipts. **B04 NOT STARTED.**
 
 B00 was merged in [PR #1](https://github.com/MiladMahdavi1999/gif-platform/pull/1).
 B01 was merged in [PR #2](https://github.com/MiladMahdavi1999/gif-platform/pull/2).
-See [B02 results](docs/implementation/B02-report.md) for current checks and
+B02 was merged in [PR #3](https://github.com/MiladMahdavi1999/gif-platform/pull/3).
+See [B03 results](docs/implementation/B03-report.md) for current checks and
 [B01](docs/implementation/B01-report.md) / [B00](docs/implementation/B00-report.md) for the baselines.
 
 The seven original Phase 03 documents remain unchanged at the repository root;
 `Coding-Agent-Handover.md` and `Implementation-Backlog.md` define this task.
 Implementation choices remain Provisional. The 13 core tables and pure state
-guards exist. Session login and role authorization are implemented; upload,
-moderation workflow and search remain unimplemented. The worker remains idle.
+guards exist. Session login, owner receipts and real private S3 uploads are implemented.
+Processing, moderation workflow, public search and Picker remain unimplemented. The worker remains idle.
 
 ## Run a clean clone
 
@@ -170,7 +171,7 @@ uses a temporary PostgreSQL data mount and loopback port 55432:
 docker compose -f infra/compose.db-test.yaml up --wait
 TEST_DATABASE_URL=postgresql://gif_platform:local_only_integration_password@127.0.0.1:55432/gif_platform_test \
   ALLOW_DATABASE_INTEGRATION_TESTS=true \
-  npx --yes pnpm@10.34.7 test:integration
+  npx --yes pnpm@10.34.7 test:integration --exclude packages/db/src/uploads.integration.test.ts
 docker compose -f infra/compose.db-test.yaml down
 ```
 
@@ -181,7 +182,7 @@ queries/updates/GIN planning, append-only audit, production refusal and
 reset→migrate→seed. Unit tests cover seven-axis transition guards separately,
 including self-review, missing rights/derivatives, stale version, invalid
 sequencing and delivery degradation without erasing historical approval.
-B02 authentication now uses these tables; later media workflows remain unimplemented.
+B02 authentication and B03 private receipts use these tables; processing remains unimplemented.
 
 ## Stop, reset and diagnose
 
@@ -214,8 +215,8 @@ plugins support ESLint 10. No unsupported peer override is used.
 Container bases use exact release tags: Node 24.19.0 bookworm-slim, PostgreSQL
 17.6 bookworm, Caddy 2.10.2 alpine and Go 1.24.8 bookworm for the pinned MinIO
 source build. These are local development images, not a production deployment
-approval. Drizzle ORM 0.45.4, Drizzle Kit 0.31.11 and Argon2 2.2.2 are pinned for B01; S3 object operations and bucket
-provisioning start in B03; FFmpeg starts in B04. Pure domain state guards reserve the later feature boundaries.
+approval. Drizzle ORM 0.45.4, Drizzle Kit 0.31.11 and Argon2 2.2.2 are pinned for B01; AWS S3 SDK 3.922.0 object operations and bucket
+provisioning are implemented in B03; FFmpeg starts in B04. Pure domain state guards reserve the later feature boundaries.
 
 Web imports only browser-safe contracts. ESLint blocks DB/storage imports into
 web and API/web framework imports into worker. Packages compile to ESM with
@@ -226,7 +227,7 @@ strict TypeScript. There is no additional monorepo orchestrator or service.
 BuildKit accepts an optional `proxy_ca` secret for the networked Docker build
 steps. Ordinary local Docker needs no override. In a managed cloud environment,
 use its supplied CA and proxy configuration. Add an **ignored** Compose override
-which supplies `build.secrets: [proxy_ca]` for `api`, `web`, `worker` and `minio`,
+which supplies `build.secrets: [proxy_ca]` for `api`, `web`, `worker`, `storage-init` and `minio`,
 and declares `secrets.proxy_ca.file` as the supplied CA bundle path. Pass that
 override after `infra/compose.yaml`. Never copy a session CA or credential into
 an image or disable TLS verification. This session's exact override invocation
@@ -244,7 +245,7 @@ check. The public home and dependency health checks remain available anonymously
 Use the two distinct **B01** seed accounts configured in your ignored `.env`;
 passwords are never printed. Run `pnpm db:migrate` and `pnpm db:seed:dev` before
 signing in. The seed is opt-in development tooling and does not reset an existing
-account password. No moderation actions or media workflow are implemented.
+account password. No moderation actions or processing are implemented.
 
 - `POST /api/v1/auth/login`: strict JSON `{email,password}` and exact configured
   `Origin`; returns the user and session-bound CSRF token, sets HttpOnly cookie.
@@ -287,4 +288,87 @@ PostgreSQL database with B01 migrations/seed (same opt-in/URL requirements as
 above). Browser auth tests disable traces/video to keep credentials and session
 values out of retained evidence. Never enable authentication request traces or
 commit browser storage state. See `docs/implementation/B02-report.md` for actual
-local/CI results and Provisional implementation choices. **B03 NOT STARTED.**
+local/CI baseline results and Provisional implementation choices. **B04 NOT STARTED.**
+
+## B03 private upload checkpoint
+
+After the clean-clone commands, sign in as the seeded uploader and open
+`http://localhost:8080/studio/upload`. Choose your own animated GIF, enter a title
+and optional comma-separated tags, affirm upload rights, then select **Upload
+privately**. The browser sends a presigned POST directly to `localhost:9000`.
+The progress bar measures transfer only; the UI separately confirms real S3 HEAD
+verification and the PostgreSQL commit. A completion transport failure can be
+retried with the same upload ID without uploading again. A new attempt is explicit.
+
+Open `/studio/assets` for your owner-only receipt list or
+`/studio/assets/:assetId` for eight separate state axes. Refresh restores the
+receipt from PostgreSQL. Originals have no preview or download link. Expected
+final B03 state: `RECEIVED / QUEUED / PRIVATE / INELIGIBLE / NOT_INDEXED / BLOCKED /
+NOT_READY / NOT_REQUESTED`. The worker leaves every job `READY`, attempt count 0.
+
+Implemented endpoints (shared schemas and generated OpenAPI in `docs/api/`):
+
+- `POST /api/v1/uploads`: UPLOADER, exact Origin, session CSRF, strict metadata,
+  `Idempotency-Key` (8–128 ASCII letters/digits/underscore/hyphen). Returns 201.
+  Same normalized metadata/key reuses the same asset. Changed metadata 409;
+  expired key 409. Default policy 600 seconds, file ceiling 20 MiB.
+- `POST /api/v1/uploads/:uploadId/complete`: same owner with UPLOADER and CSRF,
+  body `{}`. Actual internal S3 HEAD validates size, claimed size and exact GIF
+  content type. Receipt, states, unique READY job and audit commit together.
+  Returns 202; repeated completion returns current receipt, including after expiry.
+  Unreceived expired intent 410, missing object 409, mismatched MIME/size 409,
+  oversized file 413. Bytes are not decoded or certified as safe yet.
+- `GET /api/v1/me/assets`: authenticated owner list, newest first, 24 items and
+  UUID keyset `nextCursor`/`?cursor=`. No arbitrary S3 keys or private URLs returned.
+- `GET /api/v1/me/assets/:assetId`: authenticated owner status; another owner
+  receives 404. Anonymous owner reads receive 401.
+
+`pnpm dev` runs a one-shot, guarded `storage-init` service before API startup.
+It creates two private buckets, removes bucket policies and enables quarantine
+versioning. MinIO's `MINIO_API_CORS_ALLOW_ORIGIN` is the exact `PUBLIC_BASE_URL`;
+its global CORS setting is used because local MinIO does not implement bucket
+CORS configuration. Readiness additionally checks the quarantine bucket and
+versioning. No anonymous object reads, source-file proxy or public routes exist.
+Both S3 endpoints must be canonical HTTP(S) origins; non-development mode requires
+HTTPS. `S3_PUBLIC_ENDPOINT` is used when signing and `S3_INTERNAL_ENDPOINT` for HEAD.
+
+**Provisional safeguard:** migration `0002_upload_receipt_version.sql` adds
+`received_version_id`. The receipt pins its HEAD-verified MinIO version and ETag;
+a still-valid form replay can create another private version but cannot replace
+the version in the durable receipt. B04 must consume this pinned version, not the
+latest object. No media processing has been added in B03.
+
+**Provisional limit:** 20 new intents per owner per 15 minutes, persisted and
+serialized by an owner-row lock across API processes. Existing-key retries do not
+consume another intent. Metadata and rights validation happens before storage.
+Upload policy bearer fields are short lived; the browser receives the required
+access-key identifier and signature, never the secret access key or an S3 client
+with permanent credentials. Development bootstrap/API use the configured local
+server identity; production least-privilege identity provisioning remains a gap.
+
+For all real PostgreSQL + MinIO integration tests, first start the full stack
+and the isolated database dependency, then run with these disposable local values:
+
+```sh
+docker compose -f infra/compose.db-test.yaml up -d --wait
+TEST_DATABASE_URL=postgresql://gif_platform:local_only_integration_password@127.0.0.1:55432/gif_platform_test \
+  ALLOW_DATABASE_INTEGRATION_TESTS=true ALLOW_STORAGE_INTEGRATION_TESTS=true \
+  TEST_S3_INTERNAL_ENDPOINT=http://127.0.0.1:9000 \
+  TEST_S3_PUBLIC_ENDPOINT=http://localhost:9000 \
+  TEST_S3_ACCESS_KEY_ID=local_access_key \
+  TEST_S3_SECRET_ACCESS_KEY=local_only_storage_password \
+  npx --yes pnpm@10.34.7 test:integration
+npx --yes pnpm@10.34.7 test:e2e
+```
+
+Use your ignored `.env` values if you changed the local storage credentials.
+Tests generate their own GIF bytes and random isolated buckets/databases. Missing
+opt-ins or dependencies fail; B03 is not silently skipped. To run only baseline
+B01/B02 PostgreSQL tests use the explicit `--exclude` command above. Browser auth
+and upload traces/video are disabled so cookies and signed forms are not retained.
+CI also retains a credential-free pinned MinIO image artifact for one day to help
+reproduce verification when a managed executor cannot build Go dependencies.
+
+There is no automatic approval, processing, publication, search or media delivery.
+Expired/unreferenced objects and old versions stay private; audited retention and
+orphan cleanup require a later operational task. **B04 NOT STARTED.**

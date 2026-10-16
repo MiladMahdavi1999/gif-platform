@@ -1,4 +1,4 @@
-name: B00 B01 and B02 checks
+name: B00 through B03 checks
 on:
   push:
   pull_request:
@@ -7,7 +7,7 @@ permissions:
 jobs:
   b00:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4.3.0
       - uses: pnpm/action-setup@v4.1.0
@@ -26,6 +26,13 @@ jobs:
       - run: pnpm build
       - run: cp .env.example .env
       - run: pnpm dev
+      - name: Retain pinned MinIO runtime for reproducible local verification
+        run: docker save gif-platform-minio:2025-10-15 | gzip > work-minio-runtime.tar.gz
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: b03-minio-runtime
+          path: work-minio-runtime.tar.gz
+          retention-days: 1
       - run: pnpm db:migrate
       - run: pnpm db:seed:dev
       - run: pnpm db:migrate
@@ -36,9 +43,21 @@ jobs:
       - run: pnpm db:seed:dev
       - run: pnpm db:inspect:dev
       - run: pnpm test:smoke
+      - run: docker compose -f infra/compose.db-test.yaml up -d --wait
+      - name: All B01 B02 B03 real PostgreSQL and MinIO integration tests
+        run: pnpm test:integration
+        env:
+          TEST_DATABASE_URL: postgresql://gif_platform:local_only_integration_password@127.0.0.1:55432/gif_platform_test
+          ALLOW_DATABASE_INTEGRATION_TESTS: 'true'
+          ALLOW_STORAGE_INTEGRATION_TESTS: 'true'
+          TEST_S3_ACCESS_KEY_ID: local_access_key
+          TEST_S3_SECRET_ACCESS_KEY: local_only_storage_password
+          TEST_S3_INTERNAL_ENDPOINT: http://127.0.0.1:9000
+          TEST_S3_PUBLIC_ENDPOINT: http://localhost:9000
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - run: node scripts/test-auth-log-hygiene.mjs
+      - run: node scripts/test-upload-log-hygiene.mjs
       - run: node scripts/test-dependency-failures.mjs
       - run: node scripts/test-local-lifecycle.mjs --confirm=gif_platform
       - run: pnpm db:migrate
@@ -47,7 +66,7 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: b02-browser-evidence
+          name: b03-browser-evidence
           path: test-results/
           if-no-files-found: ignore
       - if: always()
@@ -86,4 +105,5 @@ jobs:
           pnpm db:generate
           git diff --exit-code -- packages/db/migrations
           test -z "$(git ls-files --others --exclude-standard packages/db/migrations)"
-      - run: pnpm test:integration
+      - name: B01 and B02 PostgreSQL regression tests (B03 also runs in full-stack job)
+        run: pnpm test:integration --exclude packages/db/src/uploads.integration.test.ts

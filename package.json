@@ -28,20 +28,25 @@
     "db:inspect:dev": "node scripts/database-command.mjs inspect",
     "db:reset": "node scripts/database-command.mjs reset",
     "api:generate": "pnpm build:packages && node scripts/generate-openapi.mjs",
-    "api:check": "pnpm build:packages && node scripts/generate-openapi.mjs --check"
+    "api:check": "pnpm build:packages && node scripts/generate-openapi.mjs --check",
+    "storage:provision:dev": "node scripts/provision-storage.mjs"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "3.922.0",
+    "@gif/contracts": "workspace:*",
+    "@gif/storage": "workspace:*",
+    "@gif/testing": "workspace:*",
     "@playwright/test": "1.64.1",
     "@types/node": "24.19.2",
     "@types/pg": "8.23.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "drizzle-kit": "0.31.11",
     "eslint": "9.39.5",
     "eslint-config-next": "16.4.1",
     "prettier": "3.9.10",
     "typescript": "5.9.3",
     "typescript-eslint": "8.71.2",
-    "vitest": "5.0.5",
-    "drizzle-kit": "0.31.11"
+    "vitest": "5.0.5"
   }
 }

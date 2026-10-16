@@ -1,0 +1,25 @@
+B03 executed CI evidence — fully passing code/test run
+Run: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/38901428207
+Head: ff35cb9c55ea130bae853c98fbe009b5ddfacc8a
+Both jobs completed successfully. Selected result lines only; no credentials retained.
+
+2026-10-16T12:34:32.1030573Z All matched files use Prettier code style!
+2026-10-16T12:35:06.4044840Z  Test Files  7 passed (7)
+2026-10-16T12:35:06.4046655Z       Tests  69 passed (69)
+2026-10-16T12:35:14.0134541Z OpenAPI matches implemented contracts
+2026-10-16T12:38:42.0449983Z PASS: single-origin home, liveness and dependency readiness
+2026-10-16T12:39:02.7464875Z  Test Files  3 passed (3)
+2026-10-16T12:39:02.7466240Z       Tests  32 passed (32)
+2026-10-16T12:39:33.0783332Z   11 passed (7.5s)
+2026-10-16T12:39:33.4367569Z B02 runtime logs contain no tested passwords, session token or CSRF token
+2026-10-16T12:39:33.8241661Z PASS: actual signed upload/completion logs exclude session, CSRF, policy, signature and passwords
+2026-10-16T12:39:39.9898060Z PASS: db stopped -> readiness 503, liveness 200, browser unavailable
+2026-10-16T12:39:45.0190110Z PASS: db restored -> readiness 200, browser ready
+2026-10-16T12:39:50.0636660Z PASS: minio stopped -> readiness 503, liveness 200, browser unavailable
+2026-10-16T12:39:54.5963842Z PASS: minio restored -> readiness 200, browser ready
+2026-10-16T12:39:59.6227802Z PASS: API stopped -> edge 502, home still renders, browser unavailable
+2026-10-16T12:40:04.8361377Z PASS: API restored -> readiness 200, browser ready
+2026-10-16T12:40:05.2904470Z PASS: worker SIGTERM exits 0 and records graceful shutdown
+2026-10-16T12:40:05.6235395Z PASS: all six service logs exclude configured credentials/DB URL
+2026-10-16T12:40:18.1714989Z PASS: single-origin home, liveness and dependency readiness
+2026-10-16T12:40:18.1716350Z PASS: fresh local volumes reboot all six services and readiness 200

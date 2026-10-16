@@ -71,6 +71,8 @@ it('requires HTTPS outside development and an exact canonical CSRF origin', () =
       NODE_ENV: 'production',
       PUBLIC_BASE_URL: 'https://gif.test',
       CSRF_ORIGIN: 'https://gif.test',
+      S3_INTERNAL_ENDPOINT: 'https://storage.internal.test',
+      S3_PUBLIC_ENDPOINT: 'https://storage.test',
     }).SESSION_TTL_SECONDS,
   ).toBe(86400);
 });
@@ -82,3 +84,19 @@ it.each(['0', '-1', '999999999'])(
     );
   },
 );
+it('bounds upload policies and requires separate buckets and canonical endpoints', () => {
+  for (const settings of [
+    { MEDIA_UPLOAD_POLICY_TTL_SECONDS: '0' },
+    { MEDIA_UPLOAD_POLICY_TTL_SECONDS: '3601' },
+    { MAX_GIF_UPLOAD_BYTES: '0' },
+    { MAX_GIF_UPLOAD_BYTES: '20971521' },
+    {
+      S3_QUARANTINE_BUCKET: 'same-bucket',
+      S3_DERIVATIVES_BUCKET: 'same-bucket',
+    },
+    { S3_PUBLIC_ENDPOINT: 'http://localhost:9000/path' },
+  ])
+    expect(() => readApiConfig({ ...valid, ...settings })).toThrow(
+      /Invalid configuration/,
+    );
+});

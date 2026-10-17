@@ -33,7 +33,8 @@ test('approved public gallery and detail, keyboard and reduced motion, safe medi
   try {
     const upload = await owner.newPage();
     await login(upload, 'UPLOADER');
-    const title = `B06 Firefly ${randomUUID()}`,
+    const query = `B06 Firefly ${randomUUID()}`;
+    const title = `${query} ${'z'.repeat(105)}`,
       tag = `firefly-${randomUUID()}`;
     await upload.goto('/studio/upload');
     await upload.getByLabel('Animated GIF (up to 20 MiB)').setInputFiles({
@@ -63,7 +64,7 @@ test('approved public gallery and detail, keyboard and reduced motion, safe medi
       `/media/${id}/poster.png`,
     ])
       expect((await publicPage.request.get(path)).status()).toBe(404);
-    await publicPage.goto(`/?q=${encodeURIComponent(title)}`);
+    await publicPage.goto(`/?q=${encodeURIComponent(query)}`);
     await expect(
       publicPage.getByText('No GIFs found. Try another title or tag.'),
     ).toBeVisible();
@@ -78,7 +79,7 @@ test('approved public gallery and detail, keyboard and reduced motion, safe medi
       reviewPage.getByText('Decision saved: APPROVED.', { exact: true }),
     ).toBeVisible();
     await publicPage.goto('/');
-    await publicPage.getByLabel('Search GIFs', { exact: true }).fill(title);
+    await publicPage.getByLabel('Search GIFs', { exact: true }).fill(query);
     await publicPage.getByLabel('Search GIFs', { exact: true }).press('Enter');
     const link = publicPage.getByRole('link', { name: title, exact: true });
     await expect(link).toBeVisible();
@@ -225,7 +226,7 @@ test('approved public gallery and detail, keyboard and reduced motion, safe medi
     await expect(
       publicPage.locator('meta[name="robots"]').first(),
     ).toHaveAttribute('content', /noindex/);
-    await publicPage.goto(`/?q=${encodeURIComponent(title)}`);
+    await publicPage.goto(`/?q=${encodeURIComponent(query)}`);
     await expect(
       publicPage.getByText('No GIFs found. Try another title or tag.'),
     ).toBeVisible();

@@ -83,6 +83,7 @@ input[type='checkbox'] {
 }
 
 .public-page {
+  overflow-wrap: anywhere;
   max-width: 72rem;
   margin: 3rem auto;
 }

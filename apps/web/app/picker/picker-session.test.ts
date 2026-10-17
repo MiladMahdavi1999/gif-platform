@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PublicDetail } from '@gif/contracts';
-import { createPickerSession } from './picker-session.js';
-import { PickerReadError } from './public-read.js';
+import { createPickerSession } from './picker-session.ts';
+import { PickerReadError } from './public-read.ts';
 
 const id = '16f72691-8f32-426f-8f86-e42b6b520879';
 const gif: PublicDetail = {

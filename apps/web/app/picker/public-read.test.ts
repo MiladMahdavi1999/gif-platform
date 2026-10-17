@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { eligibleGif, searchGifs } from './public-read.js';
+import { eligibleGif, searchGifs } from './public-read.ts';
 
 const id = '16f72691-8f32-426f-8f86-e42b6b520879';
 const detail = {

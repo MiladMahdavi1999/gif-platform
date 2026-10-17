@@ -15,7 +15,8 @@
         "name": "next"
       }
     ],
-    "declaration": false
+    "declaration": false,
+    "allowImportingTsExtensions": true
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

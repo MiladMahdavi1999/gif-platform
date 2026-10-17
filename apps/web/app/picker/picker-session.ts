@@ -1,5 +1,5 @@
 import type { PickerCallbacks } from '@gif/contracts';
-import { eligibleGif, PickerReadError } from './public-read.js';
+import { eligibleGif, PickerReadError } from './public-read.ts';
 
 /** Synchronous guards also cover events arriving before React rerenders. */
 export function createPickerSession(

@@ -24,6 +24,9 @@ import { processJob } from '../../../apps/worker/src/process-job.js';
 import { migrate } from './migrate.js';
 import { assertDevelopmentDatabase, seedDevelopment } from './dev.js';
 import { animatedGif } from '@gif/testing';
+import { publicDetailSchema } from '@gif/contracts';
+import { createPickerSession } from '../../../apps/web/app/picker/picker-session.js';
+import { PickerReadError } from '../../../apps/web/app/picker/public-read.js';
 import {
   PutObjectCommand,
   DeleteObjectCommand,
@@ -323,6 +326,81 @@ async function hidden(id: string) {
   ).toBe(false);
 }
 describe('B06 real PostgreSQL/MinIO/FFmpeg public discovery and origin', () => {
+  it('B07 selection rechecks authoritative detail after listing and denies newly ineligible and removed GIFs', async () => {
+    const id = await fixture();
+    await approve(id);
+    expect(
+      (await list())
+        .json()
+        .items.some((item: { id: string }) => item.id === id),
+    ).toBe(true);
+    const results: string[] = [];
+    const lookup = async (assetId: string) => {
+      const response = await publicDetail(assetId);
+      if (response.statusCode !== 200)
+        throw new PickerReadError(response.statusCode === 404);
+      return publicDetailSchema.parse(response.json());
+    };
+    const session = createPickerSession(
+      {
+        onSelect: () => results.push('selected'),
+        onCancel: () => results.push('cancelled'),
+        onError: (error) => results.push(error.code),
+      },
+      lookup,
+    );
+    await pool.query(
+      "UPDATE assets SET rights_attestation_version='revoked' WHERE id=$1",
+      [id],
+    );
+    await session.select(id);
+    expect(results).toEqual(['GIF_RESTRICTED']);
+    await pool.query(
+      "UPDATE assets SET rights_attestation_version='v1' WHERE id=$1",
+      [id],
+    );
+    expect((await decision(id, 'REMOVE')).statusCode).toBe(200);
+    await session.select(id);
+    expect(results).toEqual(['GIF_RESTRICTED', 'GIF_RESTRICTED']);
+    session.cancel();
+    expect(results.at(-1)).toBe('cancelled');
+    expect((await snapshot(id)).decisions).toBe(2);
+  });
+  it('B07 concurrent selection events return one fresh selected reference and perform no Host write', async () => {
+    const id = await fixture();
+    await approve(id);
+    const before = await snapshot(id);
+    const references: unknown[] = [];
+    const session = createPickerSession(
+      {
+        onSelect: (reference) => references.push(reference),
+        onCancel: () => {
+          throw new Error('Unexpected cancellation');
+        },
+        onError: () => {
+          throw new Error('Unexpected selection error');
+        },
+      },
+      async (assetId) =>
+        publicDetailSchema.parse((await publicDetail(assetId)).json()),
+    );
+    await Promise.all([
+      session.select(id),
+      session.select(id),
+      session.select(id),
+    ]);
+    session.cancel();
+    expect(references).toEqual([
+      {
+        id,
+        kind: 'GIF',
+        title: expect.any(String),
+        posterUrl: `/media/${id}/poster.png`,
+        displayUrl: `/media/${id}/display.gif`,
+      },
+    ]);
+    expect(await snapshot(id)).toEqual(before);
+  });
   it('processed approved GIF is discoverable by title and normalized Unicode tags, with anonymous detail and verified media', async () => {
     const id = await fixture(true, undefined, 'Celestial Lantern');
     await hidden(id);

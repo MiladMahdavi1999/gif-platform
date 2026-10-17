@@ -1,9 +1,23 @@
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 import { animatedGif } from '@gif/testing';
 test.use({ trace: 'off', video: 'off' });
 test.describe.configure({ mode: 'serial' });
+// Reuse authentication across these serial owner checks so B07's additional
+// real-flow login fits the unchanged per-account authentication retry budget.
+let uploaderContext: BrowserContext;
+test.beforeAll(async ({ browser }) => {
+  uploaderContext = await browser.newContext({
+    baseURL: 'http://localhost:8080',
+  });
+  const page = await uploaderContext.newPage();
+  await login(page);
+  await page.close();
+});
+test.afterAll(async () => {
+  await uploaderContext?.close();
+});
 const compose = (...args: string[]) =>
   execFileSync(
     'docker',
@@ -40,11 +54,9 @@ async function upload(page: Page, bytes: Buffer, title: string) {
     .click();
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
 }
-test('owner polls truthful pending then processed private status after real worker restart and refresh', async ({
-  page,
-}) => {
+test('owner polls truthful pending then processed private status after real worker restart and refresh', async () => {
+  const page = await uploaderContext.newPage();
   test.setTimeout(60000);
-  await login(page);
   compose('stop', 'worker');
   try {
     await upload(page, animatedGif(), `B04 original animation ${randomUUID()}`);
@@ -91,11 +103,10 @@ test('owner polls truthful pending then processed private status after real work
   for (const path of [`/media/${id}/display.gif`, `/media/${id}/poster.png`])
     expect((await page.request.get(path)).status()).toBe(404);
   await page.screenshot({ path: 'test-results/b04-success-private.png' });
+  await page.close();
 });
-test('owner sees real terminal decode failure after refresh with no private URL or decoder output', async ({
-  page,
-}) => {
-  await login(page);
+test('owner sees real terminal decode failure after refresh with no private URL or decoder output', async () => {
+  const page = await uploaderContext.newPage();
   const gif = animatedGif();
   const still = Buffer.concat([
     gif.subarray(0, gif.length - 24),
@@ -120,4 +131,5 @@ test('owner sees real terminal decode failure after refresh with no private URL 
   ).toBeVisible();
   expect(await page.locator('img,video').count()).toBe(0);
   await page.screenshot({ path: 'test-results/b04-error-private.png' });
+  await page.close();
 });

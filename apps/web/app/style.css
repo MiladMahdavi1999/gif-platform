@@ -141,6 +141,38 @@ footer {
   border-top: 1px solid #698395;
   padding-top: 1rem;
 }
+.gif-picker {
+  box-sizing: border-box;
+  width: min(64rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: clamp(1rem, 3vw, 2rem);
+  color: #f3f6f8;
+  background: #101820;
+  border: 1px solid #698395;
+  border-radius: 0.75rem;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+.gif-picker::backdrop {
+  background: rgb(0 0 0 / 75%);
+}
+.gif-picker input {
+  min-width: 0;
+}
+.gif-picker .gif-grid {
+  gap: 1rem;
+}
+.gif-picker button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.gif-picker .picker-cancel {
+  position: sticky;
+  bottom: 0;
+}
+.picker-receipt {
+  overflow-wrap: anywhere;
+}
 :focus-visible {
   outline: 3px solid #ffe58a;
   outline-offset: 4px;

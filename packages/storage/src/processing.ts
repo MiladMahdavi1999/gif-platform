@@ -4,12 +4,28 @@ import {
   GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
+  GetBucketVersioningCommand,
 } from '@aws-sdk/client-s3';
 import { s3Client, type StorageConfig } from './uploads.js';
 // Deliberately no URL signing, ACL, policy, deletion or public delivery operations.
 export function createProcessingStorage(config: StorageConfig) {
   const client = s3Client(config);
   return {
+    async check() {
+      const abortSignal = AbortSignal.timeout(3000);
+      await Promise.all(
+        [config.S3_QUARANTINE_BUCKET, config.S3_DERIVATIVES_BUCKET].map(
+          async (Bucket) => {
+            const result = await client.send(
+              new GetBucketVersioningCommand({ Bucket }),
+              { abortSignal },
+            );
+            if (result.Status !== 'Enabled')
+              throw new Error('Private bucket versioning is required');
+          },
+        ),
+      );
+    },
     async download(
       source: { key: string; versionId: string; etag: string; size: number },
       path: string,

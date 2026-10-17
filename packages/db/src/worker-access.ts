@@ -14,6 +14,7 @@ export async function provisionDevelopmentWorker(env: NodeJS.ProcessEnv) {
   )
     throw new Error('Invalid development worker database configuration');
   const client = new pg.Client({ connectionString: api.href });
+  client.on('error', () => {});
   try {
     await client.connect();
     await client.query('BEGIN');

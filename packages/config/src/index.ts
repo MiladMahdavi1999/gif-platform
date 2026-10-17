@@ -24,6 +24,19 @@ export const apiConfigSchema = common.extend({
     .min(0)
     .max(30)
     .default(30),
+  PUBLIC_READ_LIMIT_PER_MINUTE: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(100000)
+    .default(300),
+  PUBLIC_MEDIA_LIMIT_PER_MINUTE: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(100000)
+    .default(600),
+  PUBLIC_MEDIA_MAX_CONCURRENT: z.coerce.number().int().min(1).max(5).default(5),
   SESSION_COOKIE_NAME: z
     .string()
     .regex(/^[A-Za-z][A-Za-z0-9_]{0,63}$/)
@@ -109,6 +122,17 @@ export function readApiConfig(env: NodeJS.ProcessEnv): ApiConfig {
   }
   if (config.NODE_ENV !== 'development' && !config.PUBLIC_CURSOR_SECRET)
     throw new Error('Invalid configuration fields: PUBLIC_CURSOR_SECRET');
+  if (
+    config.NODE_ENV === 'production' &&
+    [
+      'PUBLIC_READ_LIMIT_PER_MINUTE',
+      'PUBLIC_MEDIA_LIMIT_PER_MINUTE',
+      'PUBLIC_MEDIA_MAX_CONCURRENT',
+    ].some((key) => !env[key])
+  )
+    throw new Error(
+      'Invalid configuration fields: explicit public resource limits required',
+    );
   return config;
 }
 

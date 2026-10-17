@@ -9,6 +9,8 @@
     "pnpm": "10.34.7"
   },
   "scripts": {
+    "ops:inspect": "node scripts/operations-command.mjs inspect",
+    "ops:orphans": "node scripts/operations-command.mjs orphans",
     "build:packages": "pnpm --filter \"./packages/**\" -r build",
     "build": "pnpm -r build",
     "lint": "eslint .",

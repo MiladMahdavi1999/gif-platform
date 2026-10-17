@@ -10,6 +10,7 @@ import {
   createProcessingRepository,
   StaleLease,
   provisionDevelopmentWorker,
+  createOperationsRepository,
   type MediaLease,
 } from '@gif/db';
 import { createProcessingStorage } from '@gif/storage';
@@ -84,6 +85,7 @@ if (
   throw new Error('Explicit local MinIO credentials and endpoints required');
 const admin = new pg.Pool({ connectionString: source.href });
 const pool = new pg.Pool({ connectionString: target.href });
+pool.on('error', () => {});
 const auth = createAuthRepository(target.href);
 const uploads = createUploadRepository(target.href);
 const storage = createUploadStorage(config);
@@ -400,7 +402,140 @@ function child(mode = 'run') {
   };
 }
 describe('B04 real PostgreSQL, MinIO, FFmpeg and process recovery', () => {
+  it('B08 real database denial during processing leaves no partial result; restoration and legitimate expiry recover', async () => {
+    const value = await queued();
+    const lease = await claim();
+    try {
+      const result = await processJob(
+        lease,
+        processing,
+        outputStorage,
+        workerConfig,
+        new AbortController().signal,
+        async () => {
+          await admin.query(`ALTER DATABASE "${name}" ALLOW_CONNECTIONS false`);
+          await admin.query(
+            'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=$1',
+            [name],
+          );
+        },
+      );
+      expect(result).toBe('lease_lost');
+      const response = await app.inject('/api/v1/public/gifs');
+      expect(response.statusCode).toBe(503);
+      expect(response.json().error.message).toBe(
+        'Public service unavailable. Please retry.',
+      );
+      expect(response.body).not.toMatch(
+        /password|postgres|quarantine|private injected/i,
+      );
+    } finally {
+      await admin.query(`ALTER DATABASE "${name}" ALLOW_CONNECTIONS true`);
+    }
+    const before = await records(value.assetId);
+    expect(before.variants).toHaveLength(0);
+    expect(before.receipt.states.moderation).toBe('NOT_REQUESTED');
+    await new Promise((r) => setTimeout(r, 3200));
+    expect(await run(await claim())).toBe('succeeded');
+    expect((await records(value.assetId)).variants).toHaveLength(2);
+    expect((await app.inject('/api/v1/public/gifs')).statusCode).toBe(200);
+    expect(
+      (await app.inject(`/media/${value.assetId}/display.gif`)).statusCode,
+    ).toBe(404);
+  }, 20000);
+  it('B08 real MinIO outage during processing persists retry; storage restoration completes without publication', async () => {
+    const value = await queued();
+    const lease = await claim();
+    const compose = (...args: string[]) =>
+      execFileSync(
+        'docker',
+        ['compose', '--env-file', '.env', '-f', 'infra/compose.yaml', ...args],
+        { stdio: 'pipe' },
+      );
+    try {
+      const result = await run(lease, {
+        ...outputStorage,
+        download: async (...args) => {
+          const hash = await outputStorage.download(...args);
+          compose('stop', 'minio');
+          return hash;
+        },
+      });
+      expect(result).toBe('STORAGE_TEMPORARY');
+    } finally {
+      compose('start', 'minio');
+      compose('up', '-d', '--no-deps', '--no-build', '--wait', 'minio');
+    }
+    const failed = await records(value.assetId);
+    expect(failed.job.status).toBe('READY');
+    expect(failed.variants).toHaveLength(0);
+    expect(failed.receipt.states.moderation).toBe('NOT_REQUESTED');
+    await new Promise((r) =>
+      setTimeout(
+        r,
+        Math.max(0, failed.job.available_at.getTime() - Date.now()) + 20,
+      ),
+    );
+    expect(await run(await claim())).toBe('succeeded');
+    expect((await records(value.assetId)).variants).toHaveLength(2);
+    expect(
+      (await app.inject(`/media/${value.assetId}/display.gif`)).statusCode,
+    ).toBe(404);
+  }, 25000);
+  it('B08 whole-job timeout commits an explained terminal private state and diagnostics expose safe actions only', async () => {
+    const value = await queued();
+    const lease = await claim();
+    const slow = {
+      ...outputStorage,
+      download: async (...args: Parameters<typeof outputStorage.download>) => {
+        await outputStorage.download(...args);
+        const signal = args[2];
+        await new Promise<void>((_resolve, reject) => {
+          if (signal.aborted) reject(signal.reason);
+          else
+            signal.addEventListener('abort', () => reject(signal.reason), {
+              once: true,
+            });
+        });
+        return 'unreachable';
+      },
+    };
+    expect(
+      await processJob(
+        lease,
+        processing,
+        slow,
+        { ...workerConfig, MEDIA_JOB_TIMEOUT_MS: 250 },
+        new AbortController().signal,
+      ),
+    ).toBe('MEDIA_TIMEOUT');
+    const stored = await records(value.assetId);
+    expect(stored.job.status).toBe('DEAD');
+    expect(stored.variants).toHaveLength(0);
+    expect(stored.receipt.states).toMatchObject({
+      processing: 'FAILED_TERMINAL',
+      moderation: 'NOT_REQUESTED',
+      visibility: 'PRIVATE',
+    });
+    const ops = createOperationsRepository(target.href);
+    try {
+      const report = await ops.inspect();
+      expect(
+        report.jobs.find((j) => j.assetId === value.assetId),
+      ).toMatchObject({
+        code: 'MEDIA_TIMEOUT',
+        action: 'MANUAL_INVESTIGATION',
+      });
+      expect(JSON.stringify(report)).not.toMatch(
+        /quarantine\/|object_key|lease_token|password|@local/,
+      );
+    } finally {
+      await ops.close();
+    }
+    expect(await processing.claim()).toBeNull();
+  });
   it('processes B03 pinned original despite overwrite, verifies real hashes/metadata/HEAD and all eight axes', async () => {
+    await expect(outputStorage.check()).resolves.toBeUndefined();
     const value = await queued();
     await s3.send(
       new PutObjectCommand({

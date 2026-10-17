@@ -99,7 +99,7 @@ export function createOpenApiDocument() {
         get: {
           security: [],
           description:
-            'Anonymous policy-filtered PostgreSQL FTS and exact normalized tag discovery. Blank q lists recent GIFs. Stable rank/createdAt/id descending signed query-bound keyset cursor; invalid/tampered/mismatched cursors return 400 INVALID_CURSOR. No storage identifiers. Creator displayName is a pseudonymous label, never an account email.',
+            'Anonymous policy-filtered PostgreSQL FTS and exact normalized tag discovery. Blank q lists recent GIFs. Stable rank/createdAt/id descending signed query-bound keyset cursor; invalid/tampered/mismatched cursors return 400 INVALID_CURSOR. No storage identifiers. Creator displayName is a pseudonymous label, never an account email. Gallery and Picker share the configured per-peer read budget with detail; exhaustion returns 429 RATE_LIMITED and Retry-After. Dependency failure returns 503 with a safe retry message and correlated X-Request-ID.',
           parameters: Object.entries(publicQuerySchema.shape).map(
             ([name, schema]) => ({
               in: 'query',
@@ -126,7 +126,7 @@ export function createOpenApiDocument() {
             },
           ],
           description:
-            'Anonymous eligible detail with description and pseudonymous creator attribution. Every authoritative state gate is checked; all private, rejected, removed and unknown IDs return identical 404 NOT_FOUND.',
+            'Anonymous eligible detail with description and pseudonymous creator attribution. Every authoritative state gate is checked; all private, rejected, removed and unknown IDs return identical 404 NOT_FOUND. Shares the search read budget; 429 RATE_LIMITED includes Retry-After.',
           responses: {
             ...errors,
             200: response('Eligible GIF detail', publicDetailSchema),
@@ -151,7 +151,7 @@ export function createOpenApiDocument() {
             },
           ],
           description:
-            'Checks every publication, moderation, processing, search, API and technical delivery gate at request start and again after bounded exact-version SHA256 verification. Only sanitized derivatives; no raw storage URLs/keys or original media. Ineligible/unsupported returns 404. Missing/corrupt derivatives return 503 MEDIA_UNAVAILABLE and conditionally record technical DEGRADED with audit; temporary storage failures return 503 without changing business axes. No conditional 304 or range bypass. Client-cached/downloaded copies cannot be revoked.',
+            'Checks every publication, moderation, processing, search, API and technical delivery gate at request start and again after bounded exact-version SHA256 verification. Only sanitized derivatives; no raw storage URLs/keys or original media. Ineligible/unsupported returns 404. Missing/corrupt derivatives return 503 MEDIA_UNAVAILABLE and conditionally record technical DEGRADED with audit; temporary storage failures return 503 without changing business axes. No conditional 304 or range bypass. Client-cached/downloaded copies cannot be revoked. A separate configured per-peer media budget returns 429 RATE_LIMITED; bounded concurrent reads return 503 MEDIA_BUSY, both with Retry-After and no-store.',
           responses: {
             ...errors,
             200: {

@@ -1,12 +1,12 @@
-# GIF Platform — B05
+# GIF Platform — B08
 
-Local modular-monolith development stack: Next.js, Fastify, PostgreSQL 17, MinIO and Caddy, with authenticated direct uploads, durable private receipts, a lease-based private GIF processor and reviewer-only moderation/takedown. **B06 NOT STARTED.**
+Local modular-monolith development stack: Next.js, Fastify, PostgreSQL 17, MinIO and Caddy, with authenticated direct uploads, durable private receipts, a lease-based GIF processor, reviewer moderation/takedown, policy-gated discovery/media, an embedded Picker and internal recovery diagnostics. **B09 NOT STARTED.**
 
 B00 was merged in [PR #1](https://github.com/MiladMahdavi1999/gif-platform/pull/1).
 B01 was merged in [PR #2](https://github.com/MiladMahdavi1999/gif-platform/pull/2).
 B02 was merged in [PR #3](https://github.com/MiladMahdavi1999/gif-platform/pull/3).
 B03 and B04 were merged in [PR #4](https://github.com/MiladMahdavi1999/gif-platform/pull/4) and [PR #5](https://github.com/MiladMahdavi1999/gif-platform/pull/5).
-See [B05 results](docs/implementation/B05-report.md) for current checks and
+See [B08 results](docs/implementation/B08-report.md) for current checks and
 [B01](docs/implementation/B01-report.md) / [B00](docs/implementation/B00-report.md) for the baselines.
 
 The seven original Phase 03 documents remain unchanged at the repository root;
@@ -85,7 +85,7 @@ Health contracts:
 
 - `GET /api/v1/health/live`: HTTP 200, `{"status":"ok"}` while API is running.
 - `GET /api/v1/health/ready`: actual `SELECT 1` with connection/query timeouts and
-  MinIO `/minio/health/ready` with a 1.5-second timeout. HTTP 200 only when both
+  MinIO `/minio/health/ready` with a 1.5-second timeout, plus authenticated existence/versioning checks for **both** private buckets within a shared 3-second deadline. HTTP 200 only when all
   succeed; otherwise HTTP 503 with `up`/`down` per dependency. Responses include
   no connection errors, URLs or credentials, and are not cached.
 - If API is stopped, Caddy returns HTTP 502; the home remains available and
@@ -391,7 +391,7 @@ Approval atomically records the decision/audit, increments `row_version`, grants
 
 Implemented reviewer API routes are `GET /api/v1/review/queue`, `GET /api/v1/review/assets/:assetId`, `GET /api/v1/review/assets/:assetId/media/:variant`, `POST /api/v1/review/assets/:assetId/decision` and `POST /api/v1/review/assets/:assetId/remove`. Media accepts only `DISPLAY_GIF` or `POSTER_PNG`; cookies/role checks, exact derivative versions and checksums protect previews. Writes retain Origin/CSRF checks. Migration 0004 makes moderation decisions append-only; use the existing migration command when upgrading.
 
-Approval grants internal eligibility only at this checkpoint: public gallery/search/media routes remain absent. **B06 NOT STARTED.**
+The B06 public routes below consume these authoritative decisions.
 
 ### B06 public discovery and sanitized media origin
 
@@ -427,4 +427,12 @@ configuration for B00–B06, `pnpm test:e2e` for browser coverage, and
 `node scripts/test-public-log-hygiene.mjs` after the configured stack is healthy
 and seeded for real public-read/takedown/log verification. See
 `docs/implementation/B06-report.md` for exact commands, local versus CI evidence
-and remaining limits. B07 Picker and SDK work is not started.
+and remaining limits. B07's embedded Picker is available at `/demo/host-picker`; it returns selection/cancellation and never performs a Host action. SDK packaging remains outside this slice.
+
+### B08 operations and failure recovery
+
+After the stack is running and seeded, use `pnpm ops:inspect` for bounded internal retry/lease/terminal/degraded diagnostics. Use `pnpm ops:orphans <asset-uuid>` for detection-only, single-asset storage inspection. These commands require operator Docker access; there is no diagnostic HTTP endpoint or public retry control. See [operations runbook](docs/implementation/B08-operations.md) for safe interpretation, exact recovery commands, readiness checks and manual orphan review. Never reset leases, reapprove assets, delete objects or bypass the state machine to resolve a technical outage.
+
+Public search/detail (including Picker) and media now have separate configurable per-peer minute budgets, safe 429/Retry-After responses, and bounded concurrent media reads. The local defaults are explicitly **Provisional**, require explicit production configuration, and are not production capacity targets. Existing login/upload/decoder budgets are unchanged. Every API response has a server-generated request ID; safe logs record route templates and classifications without request data. Worker liveness and authenticated dependency readiness are separate (the Compose startup healthcheck remains liveness so first-time role provisioning can run).
+
+Run `node scripts/test-operations.mjs`, then `node scripts/test-dependency-failures.mjs` against the disposable stack for operator/log checks and real DB/MinIO/API outages with safe browser errors. Full integration gates include actual process death, restart, legitimate expiry, database and storage restoration, timeout/exhaustion, immutable derivatives and moderation rollback. See [B08 report](docs/implementation/B08-report.md) for observed local/CI results. **B09 NOT STARTED.**

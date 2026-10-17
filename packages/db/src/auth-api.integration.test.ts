@@ -393,7 +393,10 @@ describe('real PostgreSQL session authentication', () => {
         headers,
         payload: { email: 'missing@local.test', password },
       });
-      expect(response.statusCode).toBe(500);
+      expect(response.statusCode).toBe(503);
+      expect(response.json().error.message).toBe(
+        'Service unavailable. Please retry.',
+      );
       expect(response.body.includes('sensitive-sentinel')).toBe(false);
     } finally {
       await failed.close();

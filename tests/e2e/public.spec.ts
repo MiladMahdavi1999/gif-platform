@@ -162,18 +162,40 @@ test('approved public gallery and detail, keyboard and reduced motion, safe medi
       path: 'test-results/b06-public-gallery-mobile.png',
       fullPage: true,
     });
-    await publicPage.route(`**/media/${id}/poster.png`, (route) =>
-      route.abort(),
-    );
-    await publicPage.goto(`/g/${id}`);
-    await expect(
-      publicPage.getByRole('button', { name: 'Retry media', exact: true }),
-    ).toBeVisible();
-    await publicPage.unroute(`**/media/${id}/poster.png`);
-    await publicPage
-      .getByRole('button', { name: 'Retry media', exact: true })
-      .click();
-    await expect(publicPage.getByRole('img')).toBeVisible();
+    // Use an uncached anonymous context: earlier verified posters can remain in
+    // the browser's decoded-image cache and would not exercise a network failure.
+    const failureContext = await browser.newContext({
+      baseURL: 'http://localhost:8080',
+      reducedMotion: 'reduce',
+    });
+    try {
+      const failurePage = await failureContext.newPage();
+      let aborted = 0;
+      await failurePage.route(`**/media/${id}/poster.png`, (route) => {
+        aborted++;
+        return route.abort();
+      });
+      await failurePage.goto(`/g/${id}`);
+      await expect(
+        failurePage.getByRole('button', { name: 'Retry media', exact: true }),
+      ).toBeVisible();
+      expect(aborted).toBeGreaterThan(0);
+      await failurePage.unroute(`**/media/${id}/poster.png`);
+      await failurePage
+        .getByRole('button', { name: 'Retry media', exact: true })
+        .click();
+      await expect
+        .poll(() =>
+          failurePage
+            .getByRole('img')
+            .evaluate(
+              (e: HTMLImageElement) => e.complete && e.naturalWidth > 0,
+            ),
+        )
+        .toBe(true);
+    } finally {
+      await failureContext.close();
+    }
     await reviewPage
       .getByLabel('Reason', { exact: true })
       .selectOption('RIGHTS_REQUEST');

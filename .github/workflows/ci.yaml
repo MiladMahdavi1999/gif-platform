@@ -57,6 +57,11 @@ jobs:
           TEST_S3_PUBLIC_ENDPOINT: http://localhost:9000
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+      - name: Isolate runtime log checks from browser login retry budgets
+        run: |
+          docker compose --env-file .env -f infra/compose.yaml restart api
+          docker compose --env-file .env -f infra/compose.yaml up -d --no-deps --no-build --wait api
+          pnpm test:smoke
       - run: node scripts/test-auth-log-hygiene.mjs
       - run: node scripts/test-upload-log-hygiene.mjs
       - run: node scripts/test-review-log-hygiene.mjs

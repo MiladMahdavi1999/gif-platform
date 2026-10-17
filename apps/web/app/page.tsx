@@ -18,7 +18,8 @@ export default function Home() {
         <Link href="/login">Sign in</Link> ·{' '}
         <Link href="/studio/upload">Upload GIF</Link> ·{' '}
         <Link href="/studio/assets">My receipts</Link> ·{' '}
-        <Link href="/review">Review access</Link>
+        <Link href="/review">Review access</Link> ·{' '}
+        <Link href="/demo/host-picker">Host Picker demo</Link>
       </p>
       <Suspense fallback={<p aria-live="polite">Loading GIFs…</p>}>
         <Gallery />

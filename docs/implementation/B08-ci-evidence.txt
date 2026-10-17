@@ -1,0 +1,46 @@
+B08 successful implementation CI evidence
+Implementation SHA: ecf47c0e77a399ed3bcd4968c03d56c108d6c78d
+Workflow: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39044260444
+Full-stack job: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39044260444/job/117429741332
+Database job: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39044260444/job/117429741561
+Artifact: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39044260444/artifacts/12105306550
+Both jobs success; every recorded step success, no skipped gates.
+103 unit / 82 integration / 25 Chromium / 31 repeated PostgreSQL tests; zero skipped or uncaught errors.
+Only safe result lines are retained; complete logs remain in Actions.
+
+Full-stack result lines:
+2026-10-17T15:15:58.6149095Z PASS: regression sources contain no skip/todo/only or conditional gate declarations
+2026-10-17T15:16:00.5966087Z All matched files use Prettier code style!
+2026-10-17T15:16:50.6180569Z  Test Files  14 passed (14)
+2026-10-17T15:16:50.6181135Z       Tests  103 passed (103)
+2026-10-17T15:16:55.1019365Z OpenAPI matches implemented contracts
+2026-10-17T15:19:36.1153904Z PASS: single-origin home, liveness and dependency readiness
+2026-10-17T15:19:56.1946104Z PASS B04: pinned input, animated GIF 2 frames/200ms, PNG 1 frame, actual SHA256/HEAD, eight private axes and denials
+2026-10-17T15:19:56.9105304Z PASS B04: two actual worker processes, exactly one atomic SKIP LOCKED claim
+2026-10-17T15:20:01.7958144Z PASS B04: actual SIGKILL after two uploads; zero variants before commit; expired lease restart; exactly two object versions/two variants/one success audit
+2026-10-17T15:20:23.7197734Z  Test Files  7 passed (7)
+2026-10-17T15:20:23.7199806Z       Tests  82 passed (82)
+2026-10-17T15:21:03.0707801Z   25 passed (24.2s)
+2026-10-17T15:21:09.3144083Z PASS: single-origin home, liveness and dependency readiness
+2026-10-17T15:21:10.9045605Z PASS: actual upload/processed worker logs exclude sessions, CSRF, signatures, storage keys, temporary paths, decoder output and credentials
+2026-10-17T15:21:11.1327426Z PASS B05: real private preview, approval/replay/removal and audited history; actual runtime logs exclude reviewer session, CSRF, private notes and credentials
+2026-10-17T15:21:12.1472887Z PASS: actual upload/processed worker logs exclude sessions, CSRF, signatures, storage keys, temporary paths, decoder output and credentials
+2026-10-17T15:21:12.2815389Z PASS B06: actual approved public search/detail/sanitized media, immediate conditional/range takedown denials, retained audit; logs exclude search query, cursor key, sessions, CSRF, notes and credentials
+2026-10-17T15:21:15.9213165Z PASS B08: bounded private diagnostics, detection-only orphan scope, denied destructive/anonymous access, safe correlated runtime logs
+2026-10-17T15:21:22.0111143Z PASS: db stopped -> readiness 503, liveness 200, browser unavailable
+2026-10-17T15:21:27.0485061Z PASS: db restored -> readiness 200, browser ready
+2026-10-17T15:21:31.8075224Z PASS: minio stopped -> readiness 503, liveness 200, browser unavailable
+2026-10-17T15:21:36.8053235Z PASS: minio restored -> readiness 200, browser ready
+2026-10-17T15:21:41.9721463Z PASS: API stopped -> edge 502, home still renders, browser unavailable
+2026-10-17T15:21:47.3646220Z PASS B06: real API outage detail error/noindex and keyboard retry after recovery to truthful not-found
+2026-10-17T15:21:47.3672677Z PASS: API restored -> readiness 200, browser ready
+2026-10-17T15:21:47.7540304Z PASS: worker SIGTERM exits 0 and records graceful shutdown
+2026-10-17T15:21:49.6790051Z PASS: all six service logs exclude configured credentials/DB URL
+2026-10-17T15:22:02.0085622Z PASS: single-origin home, liveness and dependency readiness
+2026-10-17T15:22:02.0086127Z PASS: fresh local volumes reboot all six services and readiness 200
+
+PostgreSQL result lines:
+2026-10-17T15:16:11.8658769Z No schema changes, nothing to migrate 😴
+2026-10-17T15:16:31.3943170Z  Test Files  3 passed (3)
+2026-10-17T15:16:31.3944261Z       Tests  31 passed (31)
+

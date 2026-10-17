@@ -52,12 +52,15 @@ branch was reused without replacing any implementation or creating another PR.
 
 The prior [CI run 38965640876](https://github.com/MiladMahdavi1999/gif-platform/actions/runs/38965640876)
 passed 81 unit tests and all 73 PostgreSQL/MinIO/FFmpeg integration tests, including
-11 B06 cases. Browser results were 16 passed / 1 failed: the error-injection step
-reused an already cached poster. Log-hygiene and lifecycle steps were skipped after
+11 B06 cases. Browser results were 16 passed / 1 failed: the media-error UI did not appear
+after an injected image request failure. Log-hygiene and lifecycle steps were skipped after
 that failure and were not considered passed.
 
 Resumed work isolates the media-error browser test in a fresh anonymous context
-and asserts an actual aborted request plus successful decoded-image retry. CI
+and asserts an actual aborted request plus successful decoded-image retry.
+A controlled local HTTP reproduction established that an SSR image can already
+have failed before hydration attaches onError. The media component now checks
+for an already completed, undecodable image when its DOM ref attaches. CI
 restarts the API between the browser and runtime-log phases so the expanded suite
 cannot exhaust the seeded account's login budget before an independent check.
 The application authentication limits are unchanged; restarting the same container
@@ -102,7 +105,10 @@ The local Chromium outage/recovery smoke passed on the rebuilt app: unavailable
 API produced a truthful detail error and noindex; restoring the actual API and
 pressing Enter on Retry detail fetched new data and rendered unknown/not-found.
 The same scenario is committed in `node scripts/test-dependency-failures.mjs` for
-reproducible full-stack CI coverage. Final full-stack CI evidence remains pending;
+reproducible full-stack CI coverage. A separate local Chromium component smoke
+with controlled HTTP responses also passed pre-hydration image failure detection
+and keyboard retry to a decoded poster; this is UI evidence, not a real MinIO
+integration result. Its durable regression is `tests/e2e/public.spec.ts`. Final full-stack CI evidence remains pending;
 the existing PR stays draft until all required checks complete.
 
 ## Acceptance/security evidence to verify

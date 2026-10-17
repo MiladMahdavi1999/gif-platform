@@ -176,10 +176,10 @@ test('approved public gallery and detail, keyboard and reduced motion, safe medi
         return route.abort();
       });
       await failurePage.goto(`/g/${id}`);
+      await expect.poll(() => aborted).toBeGreaterThan(0);
       await expect(
         failurePage.getByRole('button', { name: 'Retry media', exact: true }),
       ).toBeVisible();
-      expect(aborted).toBeGreaterThan(0);
       await failurePage.unroute(`**/media/${id}/poster.png`);
       await failurePage
         .getByRole('button', { name: 'Retry media', exact: true })

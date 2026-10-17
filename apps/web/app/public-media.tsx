@@ -71,6 +71,10 @@ function MediaPlayer({
             src={playback && playing ? gif.displayUrl : gif.posterUrl}
             alt={description || gif.title}
             loading={playback ? 'eager' : 'lazy'}
+            ref={(image) => {
+              // SSR images can fail before hydration attaches onError.
+              if (image?.complete && image.naturalWidth === 0) setError(true);
+            }}
             onError={() => setError(true)}
           />
           {playback && (

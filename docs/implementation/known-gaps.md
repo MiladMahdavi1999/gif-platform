@@ -22,3 +22,14 @@
 ## B04 update
 
 B04 adds the durable lease worker, constrained FFmpeg processing and verified private derivatives. Local MinIO source build remains blocked by the executor network policy; the B04 report distinguishes local PostgreSQL/decoder checks from full CI MinIO/browser evidence. Production identity provisioning, patched decoder maintenance and audited orphan/retention cleanup remain operational gaps. No content is approved or public. See [B04-report.md](B04-report.md). B05 NOT STARTED.
+
+## B06 update
+
+The B00/B04 frontier statements above are historical. B05 moderation and B06
+public search, gallery/detail and policy-gated sanitized media are implemented
+and passed full CI. See [B06-report.md](B06-report.md) and its retained evidence
+for exact results and local-versus-CI distinctions. Local MinIO compilation is
+still blocked by the executor network policy; full real storage/browser/lifecycle
+verification ran in CI. Client-cached/downloaded bytes cannot be recalled, FTS
+is keyword/tag-based, creator labels are pseudonymous, and production identity,
+rights, retention, decoder maintenance and capacity work remain open. B07 NOT STARTED.

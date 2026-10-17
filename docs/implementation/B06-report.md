@@ -43,31 +43,67 @@ migration, B07 Picker, SDK, later backlog work, merge or auto-merge is included.
 - Existing review derivative loader is exported for shared descriptor validation;
   existing B00–B05 feature behavior and historical SQL remain intact.
 
+## Recovery and remaining work completed
+
+Recovered the existing Draft PR #7 and all four pushed B06 commits through
+`54b0a4c2cd31c669734e424c45fd5c8d65387675`. The restored workspace was clean on
+B05; no uncommitted B06 files survived the environment restoration. The remote
+branch was reused without replacing any implementation or creating another PR.
+
+The prior [CI run 38965640876](https://github.com/MiladMahdavi1999/gif-platform/actions/runs/38965640876)
+passed 81 unit tests and all 73 PostgreSQL/MinIO/FFmpeg integration tests, including
+11 B06 cases. Browser results were 16 passed / 1 failed: the error-injection step
+reused an already cached poster. Log-hygiene and lifecycle steps were skipped after
+that failure and were not considered passed.
+
+Resumed work isolates the media-error browser test in a fresh anonymous context
+and asserts an actual aborted request plus successful decoded-image retry. CI
+restarts the API between the browser and runtime-log phases so the expanded suite
+cannot exhaust the seeded account's login budget before an independent check.
+The application authentication limits are unchanged; restarting the same container
+retains its logs. A real local outage smoke also found that detail's boundary reset
+reused a failed server render. The retry button now requests fresh server data,
+with a real stop/recover/keyboard-retry regression in the dependency-failure script.
+
 ## Validation commands and observed results
 
-Local Node 24.19.0, pinned pnpm 10.34.7. The executor's default pnpm is 11.25.0;
+Local Node 24.19.0 and pinned pnpm 10.34.7. The executor's default pnpm is 11.25.0;
 `corepack enable --install-directory work/bin` and
 `export PATH="$PWD/work/bin:$PATH"` select the pinned shim for nested scripts.
-Initial sandbox socket failures were rerun with authorized local socket access.
+Socket-dependent checks ran with authorized local socket access.
 
-| Exact command                                                                                                            | Local result                                                    |
-| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
-| `git fetch origin main`                                                                                                  | PASS, latest main f57067d                                       |
-| `corepack pnpm install --frozen-lockfile`                                                                                | PASS                                                            |
-| `pnpm lint`                                                                                                              | PASS                                                            |
-| `pnpm typecheck`                                                                                                         | PASS                                                            |
-| `pnpm test`                                                                                                              | PASS: 81 tests, 11 files                                        |
-| `pnpm build`                                                                                                             | PASS before final test additions                                |
-| `pnpm format:check`                                                                                                      | PASS                                                            |
-| `pnpm api:check`                                                                                                         | PASS                                                            |
-| `pnpm db:check` and `pnpm db:generate`                                                                                   | Pending                                                         |
-| `docker compose -f infra/compose.db-test.yaml up -d --wait`                                                              | In progress                                                     |
-| `docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -f infra/minio/Dockerfile -t gif-platform-minio:2025-10-15 .` | BLOCKED: Google-hosted Go dependency downloads return Forbidden |
+| Exact command                                               | Local result on resumed branch          |
+| ----------------------------------------------------------- | --------------------------------------- |
+| `pnpm install --frozen-lockfile`                            | PASS                                    |
+| `pnpm format:check`                                         | PASS                                    |
+| `pnpm lint`                                                 | PASS                                    |
+| `pnpm typecheck`                                            | PASS                                    |
+| `pnpm build`                                                | PASS, including the detail retry change |
+| `pnpm test`                                                 | PASS: 81 tests, 11 files                |
+| `pnpm api:check`                                            | PASS, generated OpenAPI matches         |
+| `pnpm db:check`                                             | PASS                                    |
+| `pnpm db:generate`                                          | PASS, no schema changes                 |
+| `git diff --exit-code -- packages/db/migrations`            | PASS                                    |
+| `docker compose -f infra/compose.db-test.yaml up -d --wait` | PASS, PostgreSQL 17.6 healthy           |
+| PostgreSQL-only integration command below                   | PASS: 29 tests, three files             |
 
-Full MinIO/FFmpeg/Compose browser, security, log-hygiene and lifecycle execution
-is pending CI. These are not claimed as local passes. CI workflow extends the
-existing required jobs and excludes the new storage-dependent suite only from
-the PostgreSQL-only job; the full-stack job must run it without skips.
+```sh
+TEST_DATABASE_URL=postgresql://gif_platform:local_only_integration_password@127.0.0.1:55432/gif_platform_test ALLOW_DATABASE_INTEGRATION_TESTS=true pnpm test:integration --exclude packages/db/src/uploads.integration.test.ts --exclude packages/db/src/processing.integration.test.ts --exclude packages/db/src/review.integration.test.ts --exclude packages/db/src/public.integration.test.ts
+```
+
+The earlier local MinIO build command
+`docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -f infra/minio/Dockerfile -t gif-platform-minio:2025-10-15 .`
+was blocked by Google-hosted Go dependency downloads returning Forbidden. That
+network policy is still restricted on resume; a blocked build is not reported as
+passed. Real MinIO/full worker, full browser, security/log-hygiene and lifecycle
+checks are verified in CI, not claimed as local full-stack results.
+
+The local Chromium outage/recovery smoke passed on the rebuilt app: unavailable
+API produced a truthful detail error and noindex; restoring the actual API and
+pressing Enter on Retry detail fetched new data and rendered unknown/not-found.
+The same scenario is committed in `node scripts/test-dependency-failures.mjs` for
+reproducible full-stack CI coverage. Final full-stack CI evidence remains pending;
+the existing PR stays draft until all required checks complete.
 
 ## Acceptance/security evidence to verify
 
@@ -105,9 +141,3 @@ Production storage identities, retention/cleanup, decoder patch maintenance,
 rights/legal review and deployment provisioning remain inherited limitations.
 
 Next unstarted task: B07. B07 NOT STARTED.
-
-Local real PostgreSQL regression command (PASS: 29 tests, three files):
-
-```sh
-TEST_DATABASE_URL=postgresql://gif_platform:local_only_integration_password@127.0.0.1:55432/gif_platform_test ALLOW_DATABASE_INTEGRATION_TESTS=true pnpm test:integration --exclude packages/db/src/uploads.integration.test.ts --exclude packages/db/src/processing.integration.test.ts --exclude packages/db/src/review.integration.test.ts --exclude packages/db/src/public.integration.test.ts
-```

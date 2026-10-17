@@ -1,0 +1,49 @@
+B06 retained CI evidence
+Repository: MiladMahdavi1999/gif-platform
+PR: https://github.com/MiladMahdavi1999/gif-platform/pull/7
+Verified implementation SHA: 8a736459b103df3203ccdd6cb6c53547e6b6f51a
+Workflow: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39016552786
+Full-stack job: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39016552786/job/117349747298
+PostgreSQL/schema job: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39016552786/job/117349747068
+Both jobs completed successfully. No required test/check step was skipped.
+Browser/runtime artifact: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39016552786/artifacts/12095600256
+
+Selected result lines from the completed full-stack job:
+ Test Files  11 passed (11)
+      Tests  81 passed (81)
+OpenAPI matches implemented contracts
+PASS: single-origin home, liveness and dependency readiness
+PASS B04: pinned input, animated GIF 2 frames/200ms, PNG 1 frame, actual SHA256/HEAD, eight private axes and denials
+PASS B04: two actual worker processes, exactly one atomic SKIP LOCKED claim
+PASS B04: actual SIGKILL after two uploads; zero variants before commit; expired lease restart; exactly two object versions/two variants/one success audit
+ Test Files  7 passed (7)
+      Tests  73 passed (73)
+  17 passed (22.9s)
+PASS: single-origin home, liveness and dependency readiness
+B02 runtime logs contain no tested passwords, session token or CSRF token
+PASS: actual upload/processed worker logs exclude sessions, CSRF, signatures, storage keys, temporary paths, decoder output and credentials
+PASS B05: real private preview, approval/replay/removal and audited history; actual runtime logs exclude reviewer session, CSRF, private notes and credentials
+PASS: actual upload/processed worker logs exclude sessions, CSRF, signatures, storage keys, temporary paths, decoder output and credentials
+PASS B06: actual approved public search/detail/sanitized media, immediate conditional/range takedown denials, retained audit; logs exclude search query, cursor key, sessions, CSRF, notes and credentials
+PASS: db stopped -> readiness 503, liveness 200, browser unavailable
+PASS: db restored -> readiness 200, browser ready
+PASS: minio stopped -> readiness 503, liveness 200, browser unavailable
+PASS: minio restored -> readiness 200, browser ready
+PASS: API stopped -> edge 502, home still renders, browser unavailable
+PASS B06: real API outage detail error/noindex and keyboard retry after recovery to truthful not-found
+PASS: API restored -> readiness 200, browser ready
+PASS: worker SIGTERM exits 0 and records graceful shutdown
+PASS: all six service logs exclude configured credentials/DB URL
+PASS: single-origin home, liveness and dependency readiness
+PASS: fresh local volumes reboot all six services and readiness 200
+
+Selected result lines from the completed PostgreSQL/schema job:
+No schema changes, nothing to migrate 😴
+ Test Files  3 passed (3)
+      Tests  29 passed (29)
+
+These are CI results, not local MinIO/full-stack claims.
+Local format/lint/typecheck/build/unit/OpenAPI/schema and 29 PostgreSQL tests also passed.
+Local controlled-HTTP browser checks are UI checks; real MinIO/FFmpeg and full browser results above ran in CI.
+Seven Phase 03 reference documents, governance files and historical migrations are unchanged.
+B07 NOT STARTED.

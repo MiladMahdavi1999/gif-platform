@@ -88,8 +88,14 @@ test('browser uploads directly to localhost:9000, confirms private receipt and p
   await page.screenshot({ path: 'test-results/b03-private-receipt.png' });
   await page.goto('/studio/assets');
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
+  const publicList = await page.request.get('/api/v1/public/gifs');
+  expect(publicList.status()).toBe(200);
+  expect(
+    (await publicList.json()).items.some(
+      (item: { id: string }) => item.id === assetId,
+    ),
+  ).toBe(false);
   for (const path of [
-    '/api/v1/public/gifs',
     `/api/v1/public/gifs/${assetId}`,
     `/media/${assetId}/display.gif`,
   ])

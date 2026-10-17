@@ -17,6 +17,13 @@ const common = z.object({
 export const apiConfigSchema = common.extend({
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
   PUBLIC_BASE_URL: httpUrl,
+  PUBLIC_CURSOR_SECRET: z.string().min(32).max(256).optional(),
+  PUBLIC_MEDIA_CACHE_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(30)
+    .default(30),
   SESSION_COOKIE_NAME: z
     .string()
     .regex(/^[A-Za-z][A-Za-z0-9_]{0,63}$/)
@@ -100,6 +107,8 @@ export function readApiConfig(env: NodeJS.ProcessEnv): ApiConfig {
     )
       throw new Error(`Invalid configuration fields: ${key}`);
   }
+  if (config.NODE_ENV !== 'development' && !config.PUBLIC_CURSOR_SECRET)
+    throw new Error('Invalid configuration fields: PUBLIC_CURSOR_SECRET');
   return config;
 }
 

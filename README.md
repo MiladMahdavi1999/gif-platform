@@ -392,3 +392,39 @@ Approval atomically records the decision/audit, increments `row_version`, grants
 Implemented reviewer API routes are `GET /api/v1/review/queue`, `GET /api/v1/review/assets/:assetId`, `GET /api/v1/review/assets/:assetId/media/:variant`, `POST /api/v1/review/assets/:assetId/decision` and `POST /api/v1/review/assets/:assetId/remove`. Media accepts only `DISPLAY_GIF` or `POSTER_PNG`; cookies/role checks, exact derivative versions and checksums protect previews. Writes retain Origin/CSRF checks. Migration 0004 makes moderation decisions append-only; use the existing migration command when upgrading.
 
 Approval grants internal eligibility only at this checkpoint: public gallery/search/media routes remain absent. **B06 NOT STARTED.**
+
+### B06 public discovery and sanitized media origin
+
+`/` searches approved GIF titles/tags and supports exact tag discovery. `/g/:id`
+shows eligible detail, pseudonymous creator attribution, static poster and explicit
+GIF playback. Reduced-motion preferences never trigger autoplay; keyboard search,
+retry, tag links and playback controls are available. Private routes default to
+noindex; eligible detail gets canonical/Open Graph metadata from a fresh API read.
+
+Anonymous routes are `GET /api/v1/public/gifs?q=&tag=&limit=24&cursor=`,
+`GET /api/v1/public/gifs/:id`, and `GET /media/:assetId/display.gif` or
+`poster.png`. Every public read checks all authoritative policy/state gates;
+`search_documents` cannot grant access. Search uses PostgreSQL `simple` FTS,
+rank/createdAt/id descending and signed query-bound keyset cursors, preserving
+PostgreSQL microseconds. The same dataset has stable pages; concurrent approval,
+metadata edits or removals can change later pages. No snapshot or universal
+multilingual relevance is promised.
+
+Set `PUBLIC_CURSOR_SECRET` to an independent random secret of at least 32 characters
+outside development. Keep it stable across API restarts/replicas; rotation invalidates
+old cursors with typed 400. `PUBLIC_MEDIA_CACHE_SECONDS` defaults to 30 and accepts
+0–30. Media origin verifies both derivative descriptors and the requested exact
+private object version, MIME, size, SHA256 and signature before sending bytes,
+then checks policy again. It returns no storage URLs or keys. A confirmed missing
+or corrupt derivative returns `503 MEDIA_UNAVAILABLE` and records technical
+`DEGRADED` with audit; business/moderation axes remain intact. Subsequent reads are
+ineligible. Temporary transport failures return 503 without inferring byte loss.
+B06 never auto-restores readiness or republishes an asset. Previously downloaded
+or cached bytes may remain after removal; fresh origin requests are denied.
+
+Run `pnpm test:integration` with the existing explicit local PostgreSQL/MinIO
+configuration for B00–B06, `pnpm test:e2e` for browser coverage, and
+`node scripts/test-public-log-hygiene.mjs` after the configured stack is healthy
+and seeded for real public-read/takedown/log verification. See
+`docs/implementation/B06-report.md` for exact commands, local versus CI evidence
+and remaining limits. B07 Picker and SDK work is not started.

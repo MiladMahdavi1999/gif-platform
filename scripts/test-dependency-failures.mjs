@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { chromium, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
@@ -68,6 +69,7 @@ try {
     );
     console.log(`PASS: ${service} restored -> readiness 200, browser ready`);
   }
+  const detailPage = await browser.newPage();
   try {
     compose('stop', 'api');
     const response = await fetch(`${base}/api/v1/health/live`);
@@ -78,6 +80,19 @@ try {
       { timeout: 15000 },
     );
     await page.screenshot({ path: 'test-results/api-down.png' });
+    await detailPage.goto(`${base}/g/${randomUUID()}`);
+    await expect(
+      detailPage.getByRole('heading', {
+        name: 'GIF service unavailable',
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      detailPage.locator('meta[name="robots"]').first(),
+    ).toHaveAttribute('content', /noindex/);
+    await detailPage.screenshot({
+      path: 'test-results/b06-detail-api-down.png',
+    });
     console.log(
       'PASS: API stopped -> edge 502, home still renders, browser unavailable',
     );
@@ -88,6 +103,20 @@ try {
   await expect(page.getByRole('status')).toHaveText(
     'Dependencies ready — PostgreSQL and object store reachable',
     { timeout: 15000 },
+  );
+  await detailPage
+    .getByRole('button', { name: 'Retry detail', exact: true })
+    .focus();
+  await detailPage.keyboard.press('Enter');
+  await expect(
+    detailPage.getByRole('heading', { name: 'GIF unavailable', exact: true }),
+  ).toBeVisible();
+  await expect(
+    detailPage.locator('meta[name="robots"]').first(),
+  ).toHaveAttribute('content', /noindex/);
+  await detailPage.close();
+  console.log(
+    'PASS B06: real API outage detail error/noindex and keyboard retry after recovery to truthful not-found',
   );
   console.log('PASS: API restored -> readiness 200, browser ready');
 } finally {

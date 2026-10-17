@@ -49,7 +49,7 @@ const item = (r: Row): ReviewItem => ({
   moderation: r.moderation,
   rowVersion: Number(r.rowVersion),
 });
-async function variants(
+export async function loadReviewVariants(
   client: Pick<PoolClient, 'query'>,
   id: string,
 ): Promise<ReviewVariant[]> {
@@ -124,7 +124,7 @@ export function createReviewRepository(connectionString: string) {
             [id],
           )
         ).rows.map((t) => t.slug as string);
-        const values = await variants(client, id);
+        const values = await loadReviewVariants(client, id);
         let previews: ReviewDetail['previews'] = [];
         if (r.processing === 'SUCCEEDED') {
           try {
@@ -170,7 +170,7 @@ export function createReviewRepository(connectionString: string) {
       const r = (await pool.query<Row>(`${selection} WHERE a.id=$1`, [id]))
         .rows[0];
       if (!r || r.processing !== 'SUCCEEDED') throw notFound();
-      const values = await variants(pool, id);
+      const values = await loadReviewVariants(pool, id);
       assertReviewVariants(id, values);
       const value = values.find((v) => v.name === name);
       if (!value) throw notFound();
@@ -253,7 +253,7 @@ export function createReviewRepository(connectionString: string) {
           await client.query('COMMIT');
           return { id, states: r.states, rowVersion: Number(current) };
         }
-        const values = await variants(client, id);
+        const values = await loadReviewVariants(client, id);
         if (action === 'APPROVE') {
           assertReviewVariants(id, values);
         }

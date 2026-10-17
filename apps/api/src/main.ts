@@ -4,12 +4,14 @@ import {
   createDatabaseProbe,
   createUploadRepository,
   createReviewRepository,
+  createPublicRepository,
 } from '@gif/db';
 import {
   checkObjectStore,
   checkUploadStorage,
   createUploadStorage,
   createReviewStorage,
+  createPublicStorage,
 } from '@gif/storage';
 import { createApp } from './app.js';
 
@@ -21,6 +23,12 @@ async function main() {
   const storage = createUploadStorage(config);
   const review = createReviewRepository(config.DATABASE_URL);
   const reviewStorage = createReviewStorage(config);
+  const publicRead = createPublicRepository(
+    config.DATABASE_URL,
+    config.PUBLIC_CURSOR_SECRET ??
+      'local_development_cursor_key_not_for_production',
+  );
+  const publicStorage = createPublicStorage(config);
   const app = createApp(
     {
       database: database.check,
@@ -44,7 +52,14 @@ async function main() {
       maxBytes: config.MAX_GIF_UPLOAD_BYTES,
     },
     { repository: review.repository, storage: reviewStorage },
+    {
+      repository: publicRead.repository,
+      storage: publicStorage,
+      cacheSeconds: config.PUBLIC_MEDIA_CACHE_SECONDS,
+    },
   );
+  app.addHook('onClose', publicRead.close);
+  app.addHook('onClose', async () => publicStorage.close());
   app.addHook('onClose', database.close);
   app.addHook('onClose', auth.close);
   app.addHook('onClose', uploads.close);

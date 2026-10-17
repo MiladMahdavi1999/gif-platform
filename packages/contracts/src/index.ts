@@ -1,5 +1,10 @@
 import { z } from 'zod';
 import {
+  publicQuerySchema,
+  publicGifsSchema,
+  publicDetailSchema,
+} from './public.js';
+import {
   uploadRequestSchema,
   completeRequestSchema,
   uploadIntentSchema,
@@ -77,7 +82,7 @@ export function createOpenApiDocument() {
   );
   return {
     openapi: '3.1.0',
-    info: { title: 'GIF Platform implemented API', version: '0.5.0' },
+    info: { title: 'GIF Platform implemented API', version: '0.6.0' },
     components: {
       securitySchemes: {
         sessionCookie: {
@@ -90,6 +95,91 @@ export function createOpenApiDocument() {
       },
     },
     paths: {
+      '/api/v1/public/gifs': {
+        get: {
+          security: [],
+          description:
+            'Anonymous policy-filtered PostgreSQL FTS and exact normalized tag discovery. Blank q lists recent GIFs. Stable rank/createdAt/id descending signed query-bound keyset cursor; invalid/tampered/mismatched cursors return 400 INVALID_CURSOR. No storage identifiers. Creator displayName is a pseudonymous label, never an account email.',
+          parameters: Object.entries(publicQuerySchema.shape).map(
+            ([name, schema]) => ({
+              in: 'query',
+              name,
+              required: false,
+              schema: z.toJSONSchema(schema, { io: 'input' }),
+            }),
+          ),
+          responses: {
+            ...errors,
+            200: response('Eligible public GIFs', publicGifsSchema),
+          },
+        },
+      },
+      '/api/v1/public/gifs/{id}': {
+        get: {
+          security: [],
+          parameters: [
+            {
+              in: 'path',
+              name: 'id',
+              required: true,
+              schema: { type: 'string', format: 'uuid' },
+            },
+          ],
+          description:
+            'Anonymous eligible detail with description and pseudonymous creator attribution. Every authoritative state gate is checked; all private, rejected, removed and unknown IDs return identical 404 NOT_FOUND.',
+          responses: {
+            ...errors,
+            200: response('Eligible GIF detail', publicDetailSchema),
+          },
+        },
+      },
+      '/media/{assetId}/{variant}': {
+        get: {
+          security: [],
+          parameters: [
+            {
+              in: 'path',
+              name: 'assetId',
+              required: true,
+              schema: { type: 'string', format: 'uuid' },
+            },
+            {
+              in: 'path',
+              name: 'variant',
+              required: true,
+              schema: { type: 'string', enum: ['display.gif', 'poster.png'] },
+            },
+          ],
+          description:
+            'Checks every publication, moderation, processing, search, API and technical delivery gate at request start and again after bounded exact-version SHA256 verification. Only sanitized derivatives; no raw storage URLs/keys or original media. Ineligible/unsupported returns 404. Missing/corrupt derivatives return 503 MEDIA_UNAVAILABLE and conditionally record technical DEGRADED with audit; temporary storage failures return 503 without changing business axes. No conditional 304 or range bypass. Client-cached/downloaded copies cannot be revoked.',
+          responses: {
+            ...errors,
+            200: {
+              description: 'Verified sanitized derivative',
+              headers: {
+                'Cache-Control': {
+                  schema: { type: 'string' },
+                  description:
+                    'public, max-age=<configured 0..30>, must-revalidate; errors no-store',
+                },
+                ETag: {
+                  schema: { type: 'string' },
+                  description: 'Quoted verified SHA256',
+                },
+                'Content-Length': { schema: { type: 'integer' } },
+                'X-Content-Type-Options': { schema: { const: 'nosniff' } },
+                'Cross-Origin-Resource-Policy': {
+                  schema: { const: 'same-origin' },
+                },
+              },
+              content: {
+                'image/gif': { schema: { type: 'string', format: 'binary' } },
+                'image/png': { schema: { type: 'string', format: 'binary' } },
+              },
+            },
+          },
+        },
+      },
       '/api/v1/review/queue': {
         get: {
           security: [{ sessionCookie: [] }],
@@ -182,7 +272,7 @@ export function createOpenApiDocument() {
               description:
                 operation === 'decision'
                   ? 'REVIEWER and non-owner only. Locked version-guarded APPROVE/REJECT with decision, audit and search projection transaction. Approval verifies exact derivative HEAD, rights v1, technical readiness and PENDING. Exact replay by same actor/input version/semantics returns current state only while still current; other stale/conflicting inputs return 409.'
-                  : 'REVIEWER and non-owner only. APPROVED to REMOVED, authorization restriction and projection deletion atomically. Reason required. Exact current replay is idempotent; conflicts return 409. No public delivery endpoint is implemented.',
+                  : 'REVIEWER and non-owner only. APPROVED to REMOVED, authorization restriction and projection deletion atomically. Reason required. Exact current replay is idempotent; conflicts return 409. Subsequent public API and media-origin requests are denied after commit.',
               requestBody: {
                 required: true,
                 content: json(
@@ -381,3 +471,4 @@ export function createOpenApiDocument() {
   };
 }
 export * from './processing.js';
+export * from './public.js';

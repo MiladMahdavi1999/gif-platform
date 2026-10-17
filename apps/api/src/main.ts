@@ -33,8 +33,10 @@ async function main() {
     {
       database: database.check,
       storage: async () => {
-        await checkObjectStore(config.S3_INTERNAL_ENDPOINT);
-        await checkUploadStorage(config);
+        await Promise.all([
+          checkObjectStore(config.S3_INTERNAL_ENDPOINT),
+          checkUploadStorage(config),
+        ]);
       },
     },
     true,
@@ -56,6 +58,9 @@ async function main() {
       repository: publicRead.repository,
       storage: publicStorage,
       cacheSeconds: config.PUBLIC_MEDIA_CACHE_SECONDS,
+      readLimitPerMinute: config.PUBLIC_READ_LIMIT_PER_MINUTE,
+      mediaLimitPerMinute: config.PUBLIC_MEDIA_LIMIT_PER_MINUTE,
+      maxConcurrentMedia: config.PUBLIC_MEDIA_MAX_CONCURRENT,
     },
   );
   app.addHook('onClose', publicRead.close);

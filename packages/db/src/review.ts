@@ -88,6 +88,8 @@ export function createReviewRepository(connectionString: string) {
     max: 5,
     connectionTimeoutMillis: 1500,
     query_timeout: 12000,
+    statement_timeout: 11000,
+    idle_in_transaction_session_timeout: 15000,
   });
   pool.on('error', () => {});
   const repository = {

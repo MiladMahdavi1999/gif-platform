@@ -66,4 +66,21 @@ describe('B00 health API', () => {
       await app.close();
     }
   });
+  it('does not reflect untrusted request IDs, unmatched paths or private query data', async () => {
+    const app = createApp({ database: up, storage: up });
+    try {
+      const response = await app.inject({
+        url: '/private-sentinel?token=secret',
+        headers: { 'x-request-id': 'private-sentinel' },
+      });
+      expect(response.statusCode).toBe(404);
+      expect(response.body).not.toMatch(/sentinel|token|secret/);
+      expect(response.headers['x-request-id']).toMatch(/^[a-f0-9-]{36}$/);
+      expect(response.json().error.requestId).toBe(
+        response.headers['x-request-id'],
+      );
+    } finally {
+      await app.close();
+    }
+  });
 });

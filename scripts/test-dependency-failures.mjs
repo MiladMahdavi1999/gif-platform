@@ -51,6 +51,47 @@ try {
       const other = check === 'database' ? 'storage' : 'database';
       assert.equal(body.checks[other], 'up');
       assert.equal((await fetch(`${base}/api/v1/health/live`)).status, 200);
+      const publicRead = await fetch(`${base}/api/v1/public/gifs`);
+      assert.equal(publicRead.status, service === 'db' ? 503 : 200);
+      if (service === 'db') {
+        const failure = await publicRead.json();
+        assert.equal(
+          failure.error.message,
+          'Public service unavailable. Please retry.',
+        );
+        assert.equal(
+          publicRead.headers.get('x-request-id'),
+          failure.error.requestId,
+        );
+        await page.getByRole('button', { name: 'Search', exact: true }).click();
+        await expect(page.getByRole('alert')).toContainText(
+          'could not be loaded',
+        );
+      }
+      // Worker readiness must track dependencies; its process heartbeat is liveness only.
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const ready = execFileSync(
+          'docker',
+          [
+            'compose',
+            '--env-file',
+            '.env',
+            '-f',
+            'infra/compose.yaml',
+            'exec',
+            '-T',
+            'worker',
+            'node',
+            '-e',
+            "process.stdout.write(require('node:fs').existsSync('/tmp/gif-worker-ready')?'ready':'not_ready')",
+          ],
+          { encoding: 'utf8' },
+        );
+        if (ready === 'not_ready') break;
+        if (attempt === 19)
+          throw new Error('Worker readiness incorrectly stayed healthy');
+        await setTimeout(500);
+      }
       await expect(page.getByRole('status')).toHaveText(
         'Dependencies unavailable',
         { timeout: 15000 },
@@ -68,6 +109,7 @@ try {
       { timeout: 15000 },
     );
     console.log(`PASS: ${service} restored -> readiness 200, browser ready`);
+    assert.equal((await fetch(`${base}/api/v1/public/gifs`)).status, 200);
   }
   const detailPage = await browser.newPage();
   try {

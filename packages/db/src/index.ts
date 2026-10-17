@@ -34,3 +34,4 @@ export * from './processing.js';
 export * from './worker-access.js';
 export * from './review.js';
 export * from './public.js';
+export * from './operations.js';

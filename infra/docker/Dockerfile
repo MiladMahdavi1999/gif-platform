@@ -19,6 +19,7 @@ ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 COPY --from=build --chown=node:node /app /app
 COPY --chown=node:node scripts/provision-storage.mjs scripts/provision-storage.mjs
+COPY --chown=node:node scripts/operations.mjs scripts/operations.mjs
 USER node
 CMD ["node", "apps/api/dist/main.js"]
 

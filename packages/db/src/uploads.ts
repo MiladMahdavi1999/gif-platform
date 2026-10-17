@@ -57,6 +57,8 @@ export function createUploadRepository(connectionString: string) {
     max: 5,
     connectionTimeoutMillis: 1500,
     query_timeout: 7000,
+    statement_timeout: 6500,
+    idle_in_transaction_session_timeout: 15000,
   });
   pool.on('error', () => {});
   async function transaction<T>(

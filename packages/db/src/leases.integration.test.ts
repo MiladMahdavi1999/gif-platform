@@ -10,6 +10,7 @@ import {
 } from './processing.js';
 import { provisionDevelopmentWorker } from './worker-access.js';
 import type { VerifiedVariant } from '@gif/contracts';
+import { createOperationsRepository } from './operations.js';
 if (
   process.env.ALLOW_DATABASE_INTEGRATION_TESTS !== 'true' ||
   process.env.NODE_ENV === 'production' ||
@@ -121,6 +122,61 @@ async function dead(lease: MediaLease) {
   await repo.fail(lease, 'MEDIA_INVALID', false);
 }
 describe('B04 leases on real PostgreSQL with restricted worker identity', () => {
+  it('B08 read-only diagnostics identify backoff, real expired leases and terminal failures without leaking internals', async () => {
+    const id = await job();
+    const lease = (await repo.claim())!;
+    await repo.fail(lease, 'STORAGE_TEMPORARY', true);
+    const ops = createOperationsRepository(target.href);
+    try {
+      expect(
+        (await ops.inspect()).jobs.find((j) => j.assetId === id),
+      ).toMatchObject({
+        code: 'STORAGE_TEMPORARY',
+        action: 'WAIT_FOR_BACKOFF',
+      });
+      await pool.query(
+        'UPDATE media_jobs SET available_at=clock_timestamp() WHERE id=$1',
+        [lease.id],
+      );
+      expect(
+        (await ops.inspect()).jobs.find((j) => j.assetId === id)?.action,
+      ).toBe('AUTOMATIC_RETRY');
+      const next = (await repo.claim())!;
+      await new Promise((r) => setTimeout(r, 3100));
+      expect(
+        (await ops.inspect()).jobs.find((j) => j.assetId === id)?.action,
+      ).toBe('AUTOMATIC_LEASE_RECOVERY');
+      expect((await ops.references(id)).protectScope).toBe(true);
+      expect(await repo.claim()).toBeNull();
+      expect(
+        (await ops.inspect()).jobs.find((j) => j.assetId === id),
+      ).toMatchObject({
+        code: 'ATTEMPTS_EXHAUSTED',
+        action: 'MANUAL_INVESTIGATION',
+      });
+      await pool.query('UPDATE media_jobs SET last_error_code=$2 WHERE id=$1', [
+        next.id,
+        'secret /tmp/private decoder',
+      ]);
+      await pool.query(
+        "UPDATE asset_states SET delivery_readiness_state='DEGRADED' WHERE asset_id=$1",
+        [id],
+      );
+      const result = await ops.inspect();
+      expect(result.jobs.find((j) => j.assetId === id)?.code).toBe(
+        'UNKNOWN_FAILURE',
+      );
+      expect(result.degradedMedia.find((d) => d.assetId === id)?.action).toBe(
+        'MANUAL_INVESTIGATION',
+      );
+      expect(JSON.stringify(result)).not.toMatch(
+        /secret|tmp|decoder|lease_token|quarantine|password|@local/,
+      );
+      await expect(ops.references('../')).rejects.toThrow();
+    } finally {
+      await ops.close();
+    }
+  });
   it('atomic SKIP LOCKED claim across independent pools, then fenced transaction updates only technical states', async () => {
     const id = await job();
     const leases = await Promise.all([repo.claim(), second.claim()]);

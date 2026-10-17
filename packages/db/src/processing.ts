@@ -27,6 +27,8 @@ export function createProcessingRepository(
     max: 3,
     connectionTimeoutMillis: 1500,
     query_timeout: 5000,
+    statement_timeout: 4500,
+    idle_in_transaction_session_timeout: 10000,
   });
   pool.on('error', () => {});
   async function tx<T>(run: (c: PoolClient) => Promise<T>): Promise<T> {
@@ -79,6 +81,9 @@ export function createProcessingRepository(
     );
   }
   return {
+    async check() {
+      await pool.query('SELECT 1 FROM media_jobs LIMIT 0');
+    },
     async claim(): Promise<MediaLease | null> {
       return tx(async (c) => {
         const row = (

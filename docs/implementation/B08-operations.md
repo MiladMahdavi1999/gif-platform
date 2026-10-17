@@ -15,6 +15,8 @@ Replace the example UUID with the incident's asset ID. The wrappers execute the 
 
 API errors contain `error.requestId`, matching `X-Request-ID`. The safe API log record has the same ID, registered route template, HTTP status and classification. Incoming request IDs are ignored. Use the upload-receipt request ID from diagnostics to find the originating request; worker logs correlate by job ID, asset ID and attempt. Processing outcomes and moderation/delivery events remain in append-only audit history. No query string, upload signature, raw error/decoder output, temporary path, cookie, CSRF token, private object key or moderation note belongs in an incident's shared logs.
 
+Compose PostgreSQL uses terse error logs, disables statement/parameter logging and suppresses error statements; otherwise a constraint's rejected-row detail could reveal private values. Do not enable verbose SQL logging on the application database to diagnose an incident. `scripts/test-operations.mjs` injects a real CHECK failure and asserts its private sentinel is absent from all service logs while the failure remains observable.
+
 | Action classification      | Permitted recovery                                                                                                                                                               |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `WAIT_FOR_BACKOFF`         | Restore dependencies and wait until `availableAt`. Do not accelerate retries or reset attempts.                                                                                  |

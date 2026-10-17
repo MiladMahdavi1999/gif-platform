@@ -86,14 +86,38 @@ for (const path of [
     (await fetch(`${process.env.PUBLIC_BASE_URL}${path}`)).status,
     404,
   );
-const logs = execFileSync(
+// Exercise an actual PostgreSQL constraint error: default DETAIL logging would
+// reveal its rejected value even though the application never logs raw errors.
+const databaseSentinel = `PRIVATE-DATABASE-SENTINEL-${randomUUID()}`;
+const rejected = spawnSync(
   'docker',
-  [...args, 'logs', '--no-color', 'api', 'worker'],
-  { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 },
+  [
+    ...args,
+    'exec',
+    '-T',
+    'db',
+    'psql',
+    '-U',
+    process.env.POSTGRES_USER,
+    '-d',
+    process.env.POSTGRES_DB,
+    '-v',
+    'ON_ERROR_STOP=1',
+    '-c',
+    `INSERT INTO tags(slug) VALUES('${databaseSentinel}')`,
+  ],
+  { encoding: 'utf8' },
 );
+assert.notEqual(rejected.status, 0);
+assert.match(rejected.stderr, /check constraint/);
+const logs = execFileSync('docker', [...args, 'logs', '--no-color'], {
+  encoding: 'utf8',
+  maxBuffer: 10 * 1024 * 1024,
+});
 assert.ok(logs.includes(requestId));
 assert.ok(logs.includes('request_completed'));
 assert.ok(!logs.includes(sentinel));
+assert.ok(!logs.includes(databaseSentinel));
 assert.doesNotMatch(
   logs,
   /gif-job-|\/tmp\/.*input\.gif|quarantine\/|X-Amz-Signature/,

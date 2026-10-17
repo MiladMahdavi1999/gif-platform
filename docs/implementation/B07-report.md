@@ -6,24 +6,36 @@ merged PRs #1–#7 (B00–B06); GitHub confirms PR #7 merged. Read all seven Pha
 references and inspected the B06 read/media policies, contracts, web, tests and CI.
 B08 NOT STARTED. No merge or auto-merge is authorized or performed.
 
-Delivery state: implementation complete; final regression/CI evidence pending.
-This report will be updated with actual results before marking the PR ready.
+Implementation commit `af1adfa6ccc60a9bdb647301da8b99280022a289` passed all required
+checks in [run 39023531493](https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39023531493).
+All steps in both jobs succeeded; none were skipped. The documentation-only
+evidence follow-up is also gated on its own current-head checks before the PR
+can be marked Ready for Review; see [PR #8 checks](https://github.com/MiladMahdavi1999/gif-platform/pull/8/checks).
 
 ## Implementation and changed files
 
-| Files                                                     | Purpose                                                                                                                      |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `packages/contracts/src/picker.ts`, `index.ts`            | Export the typed reference, result, callback and recoverable error contracts                                                 |
-| `apps/web/app/picker/gif-picker.tsx`                      | Reusable mounted browser dialog, search/pagination, results, preview, selection/cancel, keyboard/focus and truthful states   |
-| `apps/web/app/picker/public-read.ts`                      | B06 schema-validated, uncached anonymous public GETs, bounded timeout, abort and safe reference binding                      |
-| `apps/web/app/picker/picker-session.ts`                   | Synchronous in-flight/settlement guards, fresh validation, cancellation and silent disposal                                  |
-| `apps/web/app/demo/host-picker/page.tsx`, `host-demo.tsx` | `/demo/host-picker` opens Picker, receives typed callbacks, displays an honest reference receipt and terminal callback count |
-| `apps/web/app/page.tsx`, `style.css`                      | Discoverable demo link and responsive modal styling                                                                          |
-| `apps/web/app/picker/*.test.ts`                           | Unit tests for idempotency, abort, reentrancy, failure/retry and public HTTP safety                                          |
-| `packages/db/src/public.integration.test.ts`              | Real backend integration for eligibility changes/removal, one callback and absence of state writes                           |
-| `tests/e2e/picker.spec.ts`                                | Real upload/process/approve/select/remove flow plus controlled browser state, keyboard, motion and safety tests              |
-| `.github/workflows/ci.yaml`                               | Include B07 in existing full regression gates and retain B07 browser evidence                                                |
-| `docs/implementation/B07-report.md`                       | Scope, contract, evidence and limitations                                                                                    |
+| Files                                                     | Purpose                                                                                                                                           |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/contracts/src/picker.ts`, `index.ts`            | Export the typed reference, result, callback and recoverable error contracts                                                                      |
+| `apps/web/app/picker/gif-picker.tsx`                      | Reusable mounted browser dialog, search/pagination, results, preview, selection/cancel, keyboard/focus and truthful states                        |
+| `apps/web/app/picker/public-read.ts`                      | B06 schema-validated, uncached anonymous public GETs, bounded timeout, abort and safe reference binding                                           |
+| `apps/web/app/picker/picker-session.ts`                   | Synchronous in-flight/settlement guards, fresh validation, cancellation and silent disposal                                                       |
+| `apps/web/app/demo/host-picker/page.tsx`, `host-demo.tsx` | `/demo/host-picker` opens Picker, receives typed callbacks, displays an honest reference receipt and terminal callback count                      |
+| `apps/web/app/page.tsx`, `style.css`                      | Discoverable demo link and responsive modal styling                                                                                               |
+| `apps/web/app/picker/*.test.ts`                           | Unit tests for idempotency, abort, reentrancy, failure/retry and public HTTP safety                                                               |
+| `packages/db/src/public.integration.test.ts`              | Real backend integration for eligibility changes/removal, one callback and absence of state writes                                                |
+| `tests/e2e/picker.spec.ts`                                | Real upload/process/approve/select/remove flow plus controlled browser state, keyboard, motion and safety tests                                   |
+| `tests/e2e/processing.spec.ts`                            | Reuse one authenticated uploader context across its two existing serial cases, leaving their assertions and the application login limits intact   |
+| `apps/web/tsconfig.json`, `tsconfig.tools.json`           | Permit explicit source TypeScript imports in no-emit browser/test checking; Next cannot resolve Node-style `.js` imports of these browser sources |
+| `.github/workflows/ci.yaml`                               | Include B07 in existing full regression gates and retain B07 browser evidence                                                                     |
+| `docs/implementation/B07-report.md`                       | Scope, contract, evidence and limitations                                                                                                         |
+
+Adding the real B07 browser flow consumes one additional seeded uploader login.
+The processing suite now shares one context across its two serial checks (the
+same pattern already used by moderation), saving one redundant login and keeping
+the full suite within the unchanged ten-attempt per-account budget. Each case
+still opens a separate page, and suite teardown closes the context on failure.
+No authentication rate control or application security behavior was changed.
 
 No new HTTP endpoint, schema migration, package dependency, SDK packaging,
 third-party integration, external ingestion or Host send/post functionality.
@@ -104,7 +116,7 @@ credentials or private account data. Existing media byte-integrity and final
 authorization gates, authentication, Origin, CSRF and framing policies are intact.
 There is no new logging or telemetry of reference/query/private data.
 
-## Executed validation and pending gates
+## Executed validation
 
 Local Node 24.19.0 / pnpm 10.34.7. The workspace uses a local Corepack/cache/store
 because the home directory is read-only. Shell commands needing sockets/network
@@ -118,16 +130,20 @@ export PATH="$PWD/work/bin:$PATH"
 pnpm install --frozen-lockfile --store-dir work/pnpm-store
 ```
 
-| Command                                                                 | Observed local result                                                           |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Frozen install above                                                    | PASS                                                                            |
-| `pnpm lint`                                                             | PASS before final tests; final run pending                                      |
-| `pnpm typecheck`                                                        | Pending final run after correcting NodeNext import extensions                   |
-| `pnpm build`                                                            | PASS, includes `/demo/host-picker`; final source rebuild pending                |
-| `pnpm test`                                                             | PASS: 98 tests, 13 files                                                        |
-| `pnpm test:e2e tests/e2e/picker.spec.ts --grep-invert 'real owned'`     | PASS: 7 Chromium tests against built app, controlled HTTP; not real-storage E2E |
-| Formatting, OpenAPI/schema drift, PostgreSQL and full-stack regressions | Pending                                                                         |
-| CI, log hygiene, dependency failures and lifecycle                      | Pending                                                                         |
+| Command                                                             | Observed local result                                                           |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Frozen install above                                                | PASS                                                                            |
+| `pnpm lint`                                                         | PASS                                                                            |
+| `pnpm typecheck`                                                    | PASS                                                                            |
+| `pnpm build`                                                        | PASS, includes `/demo/host-picker`                                              |
+| `pnpm test`                                                         | PASS: 98 tests, 13 files                                                        |
+| `pnpm test:e2e tests/e2e/picker.spec.ts --grep-invert 'real owned'` | PASS: 7 Chromium tests against built app, controlled HTTP; not real-storage E2E |
+| `pnpm format:check`                                                 | PASS                                                                            |
+| `pnpm api:check`                                                    | PASS, no OpenAPI drift                                                          |
+| `pnpm db:check`, `pnpm db:generate`                                 | PASS, no schema drift                                                           |
+| PostgreSQL-only integration command below                           | PASS: 29 tests, 3 files                                                         |
+| Full-stack local MinIO/worker/browser/lifecycle                     | BLOCKED by MinIO build; CI required                                             |
+| CI, log hygiene, dependency failures and lifecycle                  | Not run locally; PASS in full-stack CI below                                    |
 
 Local browser command used `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium`.
 The built app ran on port 3000, with `node work/browser-proxy.mjs` proxying browser
@@ -136,12 +152,140 @@ This is browser interaction evidence, not a MinIO-backed integration claim.
 The real-stack test remains required in CI. Initial unit attempt without socket
 permission failed with EPERM; its authorized rerun passed all 98 tests.
 
-CI links and exact final counts will be recorded here after completion. No
-unexecuted, skipped, unavailable or blocked check is considered passed.
+Additional executed local commands:
+
+```sh
+git diff --exit-code -- packages/db/migrations
+docker compose -f infra/compose.db-test.yaml up -d --wait
+TEST_DATABASE_URL=postgresql://gif_platform:local_only_integration_password@127.0.0.1:55432/gif_platform_test ALLOW_DATABASE_INTEGRATION_TESTS=true pnpm test:integration --exclude packages/db/src/uploads.integration.test.ts --exclude packages/db/src/processing.integration.test.ts --exclude packages/db/src/review.integration.test.ts --exclude packages/db/src/public.integration.test.ts
+export BUILDX_CONFIG="$PWD/work/buildx"
+docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -f infra/minio/Dockerfile -t gif-platform-minio:2025-10-15 .
+```
+
+PostgreSQL 17.6 start and its 29-test suite passed. MinIO build failed at the Go
+build step with Forbidden downloads from `storage.googleapis.com`. The application
+was not weakened to bypass this restriction. Full real MinIO/worker/browser,
+log-hygiene, dependency-failure and lifecycle checks are therefore CI evidence,
+not claimed as local full-stack passes. Build/typecheck also caught a browser/Node
+import resolution mismatch; explicit `.ts` imports with no-emit checking fixed it,
+and the final build/typecheck passed. These are tooling corrections, not changes
+to the architecture references.
+
+The superseded implementation run
+[39023127459](https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39023127459)
+passed 98 unit tests and 75 real integration tests (7 files), including both B07
+selection-policy cases. Its browser result was 24 passed / 1 failed: all eight
+B07 cases passed, while the final existing upload case hit the seeded uploader's
+login budget. Log-hygiene/dependency/lifecycle steps were skipped after that
+failure and are not considered passed for this run. The context-reuse correction
+above is verified in `af1adfa6ccc60a9bdb647301da8b99280022a289` by the fully passing
+run below. No unexecuted, skipped, unavailable or blocked check is
+considered passed.
+
+## Completed full-stack CI evidence
+
+Verified implementation head: `af1adfa6ccc60a9bdb647301da8b99280022a289`.
+[Full-stack job 117369913008](https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39023531493/job/117369913008)
+and [PostgreSQL job 117369912860](https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39023531493/job/117369912860)
+are both SUCCESS. All 46 full-stack and 14 PostgreSQL job steps succeeded,
+including setup/cleanup; no required step was skipped.
+
+| Gate                                                                 | Observed CI result                                                              |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Frozen install, formatting, lint, typecheck and production build     | PASS                                                                            |
+| Unit tests                                                           | PASS: 98 tests, 13 files (81 existing + 17 B07)                                 |
+| OpenAPI and database schema/migration drift checks                   | PASS; no generated changes                                                      |
+| Real PostgreSQL/MinIO/FFmpeg integration                             | PASS: 75 tests, 7 files (73 existing + 2 B07)                                   |
+| Separate PostgreSQL job                                              | PASS: 29 tests, 3 files; repeated subset of the 75, not additional unique cases |
+| Playwright Chromium                                                  | PASS: 25 tests (17 existing + 8 B07); no skipped tests                          |
+| Auth/upload/review/public runtime log hygiene                        | PASS: all four scripts                                                          |
+| Real DB/MinIO/API outage and recovery, detail keyboard retry/noindex | PASS                                                                            |
+| Worker SIGTERM, all service logs, fresh-volume reboot                | PASS                                                                            |
+| Migration/seed replay, confirmed reset and remigrate/reseed/inspect  | PASS                                                                            |
+| Single-origin health/home smoke and final Compose cleanup            | PASS                                                                            |
+
+The [browser/runtime evidence artifact](https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39023531493/artifacts/12097528747)
+contains B07 mobile/Host screenshots plus all retained B00–B06 browser and checked
+runtime-log evidence. Test assertions require one callback, focus restoration,
+fresh eligibility denial and zero Host write requests/no sent or posted success.
+
+Selected actual job result lines:
+
+```text
+Test Files  13 passed (13)
+Tests       98 passed (98)
+OpenAPI matches implemented contracts
+Test Files  7 passed (7)
+Tests       75 passed (75)
+25 passed (26.3s)
+PASS: db stopped -> readiness 503, liveness 200, browser unavailable
+PASS: minio stopped -> readiness 503, liveness 200, browser unavailable
+PASS: API stopped -> edge 502, home still renders, browser unavailable
+PASS B06: real API outage detail error/noindex and keyboard retry after recovery to truthful not-found
+PASS: worker SIGTERM exits 0 and records graceful shutdown
+PASS: all six service logs exclude configured credentials/DB URL
+PASS: fresh local volumes reboot all six services and readiness 200
+```
+
+## Full-stack CI command matrix
+
+The existing full-stack workflow executed the following commands successfully
+in the verified implementation run. The PostgreSQL/schema job also
+runs the excluded-subset integration command shown above and checks that
+migration generation produces neither tracked nor untracked changes.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm format:check
+pnpm lint
+pnpm typecheck
+sudo apt-get update && sudo apt-get install -y ffmpeg gcc
+pnpm test
+pnpm api:check
+pnpm build
+cp .env.example .env
+pnpm dev
+pnpm db:migrate
+pnpm db:seed:dev
+pnpm db:migrate
+pnpm db:seed:dev
+pnpm db:inspect:dev
+pnpm db:reset --confirm=gif_platform
+pnpm db:migrate
+pnpm db:seed:dev
+pnpm db:inspect:dev
+pnpm test:smoke
+docker compose -f infra/compose.db-test.yaml up -d --wait
+TEST_DATABASE_URL=postgresql://gif_platform:local_only_integration_password@127.0.0.1:55432/gif_platform_test ALLOW_DATABASE_INTEGRATION_TESTS=true ALLOW_STORAGE_INTEGRATION_TESTS=true TEST_S3_ACCESS_KEY_ID=local_access_key TEST_S3_SECRET_ACCESS_KEY=local_only_storage_password TEST_S3_INTERNAL_ENDPOINT=http://127.0.0.1:9000 TEST_S3_PUBLIC_ENDPOINT=http://localhost:9000 pnpm test:integration
+pnpm exec playwright install --with-deps chromium
+pnpm test:e2e
+docker compose --env-file .env -f infra/compose.yaml restart api
+docker compose --env-file .env -f infra/compose.yaml up -d --no-deps --no-build --wait api
+pnpm test:smoke
+node scripts/test-auth-log-hygiene.mjs
+node scripts/test-upload-log-hygiene.mjs
+node scripts/test-review-log-hygiene.mjs
+node scripts/test-public-log-hygiene.mjs
+node scripts/test-dependency-failures.mjs
+node scripts/test-local-lifecycle.mjs --confirm=gif_platform
+pnpm db:migrate
+pnpm db:seed:dev
+pnpm db:inspect:dev
+docker compose --env-file .env -f infra/compose.yaml down
+```
+
+Values in these commands are disposable repository-defined local CI credentials,
+not production secrets. No external content is downloaded as a GIF fixture.
 
 ## Browser smoke steps and observations
 
-Executed local Chromium smoke through the committed browser tests:
+Manual reproduction: follow README's stack start/migrate/seed instructions;
+upload an owned animation at `/studio/upload`, wait for SUCCEEDED/PENDING, then
+approve it as the separate reviewer at `/review`. Open `/demo/host-picker` in an
+anonymous browser and execute the steps below. To reproduce removal denial,
+keep the result grid open while removing the GIF from the reviewer surface.
+
+Observed local Chromium smoke through the committed browser tests:
 
 1. Open `/demo/host-picker`, Tab/Enter to open: named modal opens, search focused.
 2. Type a query/Enter, Tab to first Select, arrow to next/Home, Space: selected
@@ -156,8 +300,15 @@ Executed local Chromium smoke through the committed browser tests:
 6. At widths 320/768/1440, dialog/document have no horizontal overflow. Poster
    decodes, explicit playback works and preference changes pause to poster.
 
-Screenshots: `test-results/b07-picker-mobile.png`; real-stack Host screenshot and
-CI artifact links pending. These are automated browser observations, not a claim
+The real-stack CI browser also created an owned GIF via the actual signed POST,
+waited for worker processing, approved it with a separate reviewer, searched and
+selected it through the Picker, and observed one selected callback with no host
+write request. It reopened with stale results, removed the GIF through the real
+review API, observed restricted selection and 404 detail/media, then cancelled.
+The receipt contained the expected ID and no misleading sent/posted success.
+
+Screenshots: `test-results/b07-picker-mobile.png` and
+`test-results/b07-host-selected.png`; see the linked CI artifact above. These are automated browser observations, not a claim
 of an additional unaided human manual review.
 
 ## Limitations and provisional decisions
@@ -175,6 +326,8 @@ B06 policy. Future actual Host actions require their own authorization and
 eligibility checks. B06 production rights/privacy/retention/identity/capacity gaps
 remain. There is no new conflict requiring a Phase 03 reference amendment.
 
-All seven Phase 03 references, governance files and historical migrations must
-remain byte-for-byte unchanged; final diff verification pending. No actual Host
+Verified unchanged with `git diff origin/main --exit-code --` against all seven
+named root references, `Project-Master-Roadmap.md`, `Project-Decision-Log.md`,
+`Project-Status.md` and `packages/db/migrations`; the untracked migration check
+and `git diff --check` also passed. No new governance file was added. No actual Host
 send/post functionality exists. **B08 NOT STARTED.** B09 NOT STARTED.

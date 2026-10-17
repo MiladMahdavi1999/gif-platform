@@ -1,5 +1,6 @@
+import { createResilientPool } from './pool.js';
 import { randomUUID } from 'node:crypto';
-import pg, { type PoolClient } from 'pg';
+import type { PoolClient } from 'pg';
 import type { UploadRequest, OwnerAsset } from '@gif/contracts';
 
 export interface UploadSession {
@@ -52,7 +53,7 @@ function ownerDto(
   };
 }
 export function createUploadRepository(connectionString: string) {
-  const pool = new pg.Pool({
+  const pool = createResilientPool({
     connectionString,
     max: 5,
     connectionTimeoutMillis: 1500,
@@ -60,7 +61,6 @@ export function createUploadRepository(connectionString: string) {
     statement_timeout: 6500,
     idle_in_transaction_session_timeout: 15000,
   });
-  pool.on('error', () => {});
   async function transaction<T>(
     run: (client: PoolClient) => Promise<T>,
   ): Promise<T> {

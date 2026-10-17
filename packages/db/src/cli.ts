@@ -1,4 +1,4 @@
-import pg from 'pg';
+import { createResilientPool } from './pool.js';
 import { migrate } from './migrate.js';
 import {
   assertDevelopmentDatabase,
@@ -15,12 +15,11 @@ async function main() {
   // Refuse unsafe modes before creating a connection, including missing NODE_ENV.
   if (command !== 'migrate') assertDevelopmentDatabase(process.env);
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
-  const pool = new pg.Pool({
+  const pool = createResilientPool({
     connectionString: process.env.DATABASE_URL,
     max: 1,
     connectionTimeoutMillis: 5000,
   });
-  pool.on('error', () => {});
   try {
     const client = await pool.connect();
     try {

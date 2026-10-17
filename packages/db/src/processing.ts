@@ -1,5 +1,6 @@
+import { createResilientPool } from './pool.js';
 import { randomUUID } from 'node:crypto';
-import pg, { type PoolClient } from 'pg';
+import type { PoolClient } from 'pg';
 import type { ProcessingErrorCode, VerifiedVariant } from '@gif/contracts';
 export interface MediaLease {
   id: string;
@@ -22,7 +23,7 @@ export function createProcessingRepository(
   maxAttempts: number,
   leaseSeconds: number,
 ) {
-  const pool = new pg.Pool({
+  const pool = createResilientPool({
     connectionString,
     max: 3,
     connectionTimeoutMillis: 1500,
@@ -30,7 +31,6 @@ export function createProcessingRepository(
     statement_timeout: 4500,
     idle_in_transaction_session_timeout: 10000,
   });
-  pool.on('error', () => {});
   async function tx<T>(run: (c: PoolClient) => Promise<T>): Promise<T> {
     const c = await pool.connect();
     try {

@@ -1,4 +1,5 @@
-import pg from 'pg';
+import { createResilientPool } from './pool.js';
+import type { PoolClient } from 'pg';
 import { processingErrorCodes } from '@gif/contracts';
 import { assetIdSchema } from '@gif/contracts';
 
@@ -13,15 +14,14 @@ const safeRequest = (value: string | null) =>
 
 /** Shell/DB-authorized, bounded, read-only diagnostics. No HTTP route or mutation. */
 export function createOperationsRepository(connectionString: string) {
-  const pool = new pg.Pool({
+  const pool = createResilientPool({
     connectionString,
     max: 1,
     connectionTimeoutMillis: 1500,
     query_timeout: 5500,
     statement_timeout: 5000,
   });
-  pool.on('error', () => {});
-  async function snapshot<T>(run: (c: pg.PoolClient) => Promise<T>) {
+  async function snapshot<T>(run: (c: PoolClient) => Promise<T>) {
     const c = await pool.connect();
     try {
       await c.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');

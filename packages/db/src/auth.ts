@@ -1,6 +1,6 @@
+import { createResilientPool } from './pool.js';
 import { Algorithm, hash, verify } from '@node-rs/argon2';
 import { randomBytes } from 'node:crypto';
-import pg from 'pg';
 
 export type Role = 'UPLOADER' | 'REVIEWER' | 'ADMIN';
 export interface AuthUser {
@@ -49,13 +49,12 @@ export async function verifyPassword(passwordHash: string, password: string) {
 }
 
 export function createAuthRepository(connectionString: string) {
-  const pool = new pg.Pool({
+  const pool = createResilientPool({
     connectionString,
     max: 5,
     connectionTimeoutMillis: 1500,
     query_timeout: 3000,
   });
-  pool.on('error', () => {});
   const repository: AuthRepository = {
     async findUser(email) {
       const result = await pool.query<LoginUser>(

@@ -11,6 +11,7 @@ import {
 import { provisionDevelopmentWorker } from './worker-access.js';
 import type { VerifiedVariant } from '@gif/contracts';
 import { createOperationsRepository } from './operations.js';
+import { createResilientPool } from './pool.js';
 if (
   process.env.ALLOW_DATABASE_INTEGRATION_TESTS !== 'true' ||
   process.env.NODE_ENV === 'production' ||
@@ -122,6 +123,47 @@ async function dead(lease: MediaLease) {
   await repo.fail(lease, 'MEDIA_INVALID', false);
 }
 describe('B04 leases on real PostgreSQL with restricted worker identity', () => {
+  it('B08 checked-out connections survive disconnect events between statements and reject interrupted queries without uncaught errors', async () => {
+    const resilient = createResilientPool({
+      connectionString: target.href,
+      max: 1,
+      connectionTimeoutMillis: 1500,
+    });
+    try {
+      for (const duringQuery of [false, true]) {
+        const client = await resilient.connect();
+        try {
+          const pid = (await client.query('SELECT pg_backend_pid() AS pid'))
+            .rows[0].pid;
+          await client.query('BEGIN');
+          if (duringQuery) {
+            const rejected = expect(
+              client.query('SELECT pg_sleep(10)'),
+            ).rejects.toThrow();
+            await admin.query('SELECT pg_terminate_backend($1)', [pid]);
+            await rejected;
+          } else {
+            const disconnected = new Promise<void>((resolve) =>
+              client.once('error', () => resolve()),
+            );
+            await admin.query('SELECT pg_terminate_backend($1)', [pid]);
+            await disconnected;
+            await expect(client.query('SELECT 1')).rejects.toThrow();
+          }
+        } finally {
+          // An interrupted transaction has an uncertain socket state until END
+          // arrives; use pg's explicit discard on this known aborted client.
+          client.release(true);
+        }
+        // Dead checked-out clients are evicted; the same pool reconnects normally.
+        expect(
+          (await resilient.query('SELECT 1 AS recovered')).rows[0].recovered,
+        ).toBe(1);
+      }
+    } finally {
+      await resilient.end();
+    }
+  });
   it('B08 read-only diagnostics identify backoff, real expired leases and terminal failures without leaking internals', async () => {
     const id = await job();
     const lease = (await repo.claim())!;

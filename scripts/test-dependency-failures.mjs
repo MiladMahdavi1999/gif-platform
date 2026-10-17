@@ -23,7 +23,41 @@ async function waitReady() {
   }
   throw new Error('Readiness did not recover');
 }
+function workerProbe(file) {
+  return (
+    execFileSync(
+      'docker',
+      [
+        'compose',
+        '--env-file',
+        '.env',
+        '-f',
+        'infra/compose.yaml',
+        'exec',
+        '-T',
+        'worker',
+        'node',
+        '-e',
+        "const fs=require('node:fs');try{process.stdout.write(Date.now()-Number(fs.readFileSync(process.argv[1],'utf8'))<15000?'ready':'not_ready')}catch{process.stdout.write('not_ready')}",
+        file,
+      ],
+      { encoding: 'utf8' },
+    ) === 'ready'
+  );
+}
+async function waitWorkerReady(expected) {
+  for (let attempt = 0; attempt < 40; attempt++) {
+    if (workerProbe('/tmp/gif-worker-ready') === expected) return;
+    await setTimeout(500);
+  }
+  throw new Error(
+    expected
+      ? 'Worker dependency readiness did not recover'
+      : 'Worker dependency readiness incorrectly stayed healthy',
+  );
+}
 await waitReady();
+await waitWorkerReady(true);
 mkdirSync('test-results', { recursive: true });
 const browser = await chromium.launch(
   process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
@@ -64,34 +98,15 @@ try {
           failure.error.requestId,
         );
         await page.getByRole('button', { name: 'Search', exact: true }).click();
-        await expect(page.getByRole('alert')).toContainText(
-          'could not be loaded',
-        );
+        await expect(
+          page
+            .getByRole('region', { name: 'Discover GIFs', exact: true })
+            .getByRole('alert'),
+        ).toContainText('could not be loaded');
       }
       // Worker readiness must track dependencies; its process heartbeat is liveness only.
-      for (let attempt = 0; attempt < 20; attempt++) {
-        const ready = execFileSync(
-          'docker',
-          [
-            'compose',
-            '--env-file',
-            '.env',
-            '-f',
-            'infra/compose.yaml',
-            'exec',
-            '-T',
-            'worker',
-            'node',
-            '-e',
-            "process.stdout.write(require('node:fs').existsSync('/tmp/gif-worker-ready')?'ready':'not_ready')",
-          ],
-          { encoding: 'utf8' },
-        );
-        if (ready === 'not_ready') break;
-        if (attempt === 19)
-          throw new Error('Worker readiness incorrectly stayed healthy');
-        await setTimeout(500);
-      }
+      await waitWorkerReady(false);
+      assert.equal(workerProbe('/tmp/gif-worker-heartbeat'), true);
       await expect(page.getByRole('status')).toHaveText(
         'Dependencies unavailable',
         { timeout: 15000 },
@@ -103,6 +118,7 @@ try {
     } finally {
       compose('start', service);
       await waitReady();
+      await waitWorkerReady(true);
     }
     await expect(page.getByRole('status')).toHaveText(
       'Dependencies ready — PostgreSQL and object store reachable',

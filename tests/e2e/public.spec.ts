@@ -81,6 +81,12 @@ test('approved public gallery and detail, keyboard and reduced motion, safe medi
     await publicPage.goto('/');
     await publicPage.getByLabel('Search GIFs', { exact: true }).fill(query);
     await publicPage.getByLabel('Search GIFs', { exact: true }).press('Enter');
+    await expect(publicPage).toHaveURL(
+      (url) => url.searchParams.get('q') === query,
+    );
+    await expect(
+      publicPage.getByRole('list', { name: 'GIF results', exact: true }),
+    ).toHaveAttribute('aria-busy', 'false');
     const link = publicPage.getByRole('link', { name: title, exact: true });
     await expect(link).toBeVisible();
     await link.focus();

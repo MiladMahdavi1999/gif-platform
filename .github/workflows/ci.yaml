@@ -1,4 +1,4 @@
-name: B00 through B08 checks
+name: B00 through B09 checks
 on:
   push:
   pull_request:
@@ -50,7 +50,7 @@ jobs:
       - run: pnpm db:inspect:dev
       - run: pnpm test:smoke
       - run: docker compose -f infra/compose.db-test.yaml up -d --wait
-      - name: All B01 through B08 real PostgreSQL MinIO FFmpeg recovery and security integration tests
+      - name: All B01 through B09 real PostgreSQL MinIO FFmpeg recovery and security integration tests
         run: pnpm test:integration
         env:
           TEST_DATABASE_URL: postgresql://gif_platform:local_only_integration_password@127.0.0.1:55432/gif_platform_test
@@ -121,5 +121,90 @@ jobs:
           pnpm db:generate
           git diff --exit-code -- packages/db/migrations
           test -z "$(git ls-files --others --exclude-standard packages/db/migrations)"
-      - name: B01 and B02 PostgreSQL regression tests (B03 also runs in full-stack job)
+      - name: PostgreSQL schema, authentication, migrations and B09 provisioning subset
         run: pnpm test:integration --exclude packages/db/src/uploads.integration.test.ts --exclude packages/db/src/processing.integration.test.ts --exclude packages/db/src/review.integration.test.ts --exclude packages/db/src/public.integration.test.ts
+
+  b09-staging:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4.3.0
+      - uses: pnpm/action-setup@v4.1.0
+        with:
+          version: 10.34.7
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/check-test-gates.mjs
+      - run: pnpm build:packages
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Build traceable production images without publishing
+        run: |
+          pnpm staging init
+          pnpm staging validate
+          pnpm staging build
+      - name: Fresh infrastructure, explicit idempotent migration and empty platform
+        run: |
+          pnpm staging infra
+          pnpm staging migrate
+          pnpm staging migrate
+          pnpm staging empty
+      - name: Separate provisioning and explicitly authorized test bootstrap
+        run: |
+          pnpm staging provision
+          if pnpm staging bootstrap; then
+            echo 'FAIL: bootstrap accepted without authorization'
+            exit 1
+          fi
+          pnpm staging bootstrap --authorize-test-identities
+          pnpm staging bootstrap --authorize-test-identities
+          pnpm staging start
+          pnpm staging verify
+      - name: Real staging Chromium journey (no mocked routes)
+        run: |
+          pnpm staging smoke
+          pnpm staging logs-check
+      - name: Quiescent database and version-preserving storage restore in disposable project
+        run: |
+          pnpm staging backup
+          pnpm staging restore-drill
+      - name: Safe service diagnostics on failure
+        if: failure()
+        run: pnpm staging logs-check
+      - name: Verify required staging evidence exists
+        env:
+          B09_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test -s work/b09-image-provenance.json
+          test -s work/b09-smoke-evidence.json
+          test -s work/b09-restore-evidence.json
+          test -s work/b09-staging-playwright.json
+          test -s work/b09-log-hygiene.json
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          const proof=JSON.parse(readFileSync('work/b09-image-provenance.json','utf8'));
+          const head=process.env.B09_PR_HEAD_SHA;
+          if(!/^[a-f0-9]{40}$/.test(head??'')) throw new Error('Missing final branch identity');
+          writeFileSync('work/b09-head-identity.json',JSON.stringify({branchHead:head,checkoutRevision:proof.revision,runUrl:`${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`},null,2)+String.fromCharCode(10));
+          JSON.parse(readFileSync('work/b09-head-identity.json','utf8'));
+          JS
+          cat work/b09-smoke-evidence.json work/b09-restore-evidence.json work/b09-log-hygiene.json work/b09-head-identity.json
+      - if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: b09-staging-safe-evidence
+          path: |
+            work/b09-image-provenance.json
+            work/b09-smoke-evidence.json
+            work/b09-restore-evidence.json
+            work/b09-staging-playwright.json
+            work/b09-picker-selected.png
+            work/b09-log-hygiene.json
+            work/b09-service-safe.log
+            work/b09-head-identity.json
+          if-no-files-found: warn
+          retention-days: 14
+      - if: always()
+        run: pnpm staging down

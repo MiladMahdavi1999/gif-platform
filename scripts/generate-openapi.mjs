@@ -1,15 +1,18 @@
 import { format } from 'prettier';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { createOpenApiDocument } from '../packages/contracts/dist/index.js';
-const path = new URL('../docs/api/openapi.json', import.meta.url);
+const paths = ['../docs/api/openapi.json', '../docs/api/v1/openapi.json'].map(
+  (path) => new URL(path, import.meta.url),
+);
 const value = await format(JSON.stringify(createOpenApiDocument()), {
   parser: 'json',
 });
 if (process.argv.includes('--check')) {
-  if ((await readFile(path, 'utf8')) !== value)
-    throw new Error('OpenAPI drift: run pnpm api:generate');
+  for (const path of paths)
+    if ((await readFile(path, 'utf8')) !== value)
+      throw new Error('OpenAPI drift: run pnpm api:generate');
   console.log('OpenAPI matches implemented contracts');
 } else {
-  await mkdir(new URL('../docs/api/', import.meta.url), { recursive: true });
-  await writeFile(path, value);
+  await mkdir(new URL('../docs/api/v1/', import.meta.url), { recursive: true });
+  for (const path of paths) await writeFile(path, value);
 }

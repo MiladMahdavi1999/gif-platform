@@ -22,3 +22,12 @@ if (found.length)
 console.log(
   'PASS: regression sources contain no skip/todo/only or conditional gate declarations',
 );
+
+for (const file of await readdir('tests/staging')) {
+  const source = await readFile(`tests/staging/${file}`, 'utf8');
+  if (/\.route\(|route\.fulfill|vi\.mock|test\.fixme/.test(source))
+    throw new Error('Real staging flow cannot mock network or skip');
+}
+console.log(
+  'PASS: real staging sources contain no network mocks or fixme gates',
+);

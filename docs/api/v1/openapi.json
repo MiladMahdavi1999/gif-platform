@@ -1,0 +1,4480 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "GIF Platform implemented API",
+    "version": "1.0.0",
+    "description": "Versioned implemented slice contract. Fastify implicitly registers HEAD for each GET, with the same authorization/status/headers and no response body. Health is internal local/staging ingress. Operational commands have no HTTP endpoints."
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "gif_session",
+        "description": "Default cookie name; deployment configuration may override it. HttpOnly, SameSite=Lax, Secure on HTTPS."
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/public/gifs": {
+      "get": {
+        "security": [],
+        "description": "Anonymous policy-filtered PostgreSQL FTS and exact normalized tag discovery. Blank q lists recent GIFs. Stable rank/createdAt/id descending signed query-bound keyset cursor; invalid/tampered/mismatched cursors return 400 INVALID_CURSOR. No storage identifiers. Creator displayName is a pseudonymous label, never an account email. Gallery and Picker share the configured per-peer read budget with detail; exhaustion returns 429 RATE_LIMITED and Retry-After. Dependency failure returns 503 with a safe retry message and correlated X-Request-ID. X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "default": "",
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "default": 24,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Eligible public GIFs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "title": { "type": "string" },
+                          "tags": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                          },
+                          "creator": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "displayName": { "type": "string" }
+                            },
+                            "required": ["id", "displayName"]
+                          },
+                          "posterUrl": {
+                            "type": "string",
+                            "pattern": "^\\/media\\/[a-f0-9-]{36}\\/poster\\.png$"
+                          },
+                          "displayUrl": {
+                            "type": "string",
+                            "pattern": "^\\/media\\/[a-f0-9-]{36}\\/display\\.gif$"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "tags",
+                          "creator",
+                          "posterUrl",
+                          "displayUrl",
+                          "createdAt"
+                        ]
+                      }
+                    },
+                    "nextCursor": { "type": "string" }
+                  },
+                  "required": ["items"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "429": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Seconds until the applicable budget can retry"
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Present for MEDIA_BUSY only; one second"
+              }
+            }
+          }
+        },
+        "tags": ["public-read"],
+        "x-rate-limit": "Search and detail share explicit PUBLIC_READ_LIMIT_PER_MINUTE per socket peer, per process."
+      }
+    },
+    "/api/v1/public/gifs/{id}": {
+      "get": {
+        "security": [],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "description": "Anonymous eligible detail with description and pseudonymous creator attribution. Every authoritative state gate is checked; all private, rejected, removed and unknown IDs return identical 404 NOT_FOUND. Shares the search read budget; 429 RATE_LIMITED includes Retry-After. X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product.",
+        "responses": {
+          "200": {
+            "description": "Eligible GIF detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "title": { "type": "string" },
+                    "tags": { "type": "array", "items": { "type": "string" } },
+                    "creator": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "displayName": { "type": "string" }
+                      },
+                      "required": ["id", "displayName"]
+                    },
+                    "posterUrl": {
+                      "type": "string",
+                      "pattern": "^\\/media\\/[a-f0-9-]{36}\\/poster\\.png$"
+                    },
+                    "displayUrl": {
+                      "type": "string",
+                      "pattern": "^\\/media\\/[a-f0-9-]{36}\\/display\\.gif$"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "description": { "type": ["string", "null"] },
+                    "attribution": { "type": "string" }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "tags",
+                    "creator",
+                    "posterUrl",
+                    "displayUrl",
+                    "createdAt",
+                    "description",
+                    "attribution"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "429": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Seconds until the applicable budget can retry"
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Present for MEDIA_BUSY only; one second"
+              }
+            }
+          }
+        },
+        "tags": ["public-read"],
+        "x-rate-limit": "Search and detail share explicit PUBLIC_READ_LIMIT_PER_MINUTE per socket peer, per process."
+      }
+    },
+    "/media/{assetId}/{variant}": {
+      "get": {
+        "security": [],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assetId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "path",
+            "name": "variant",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["display.gif", "poster.png"]
+            }
+          }
+        ],
+        "description": "Checks every publication, moderation, processing, search, API and technical delivery gate at request start and again after bounded exact-version SHA256 verification. Only sanitized derivatives; no raw storage URLs/keys or original media. Ineligible/unsupported returns 404. Missing/corrupt derivatives return 503 MEDIA_UNAVAILABLE and conditionally record technical DEGRADED with audit; temporary storage failures return 503 without changing business axes. No conditional 304 or range bypass. Client-cached/downloaded copies cannot be revoked. A separate configured per-peer media budget returns 429 RATE_LIMITED; bounded concurrent reads return 503 MEDIA_BUSY, both with Retry-After and no-store. X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product.",
+        "responses": {
+          "200": {
+            "description": "Verified sanitized derivative",
+            "headers": {
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "public, max-age=<configured 0..30>, must-revalidate"
+              },
+              "ETag": {
+                "schema": { "type": "string" },
+                "description": "Quoted verified SHA256"
+              },
+              "Content-Length": { "schema": { "type": "integer" } },
+              "X-Content-Type-Options": { "schema": { "const": "nosniff" } },
+              "Cross-Origin-Resource-Policy": {
+                "schema": { "const": "same-origin" }
+              },
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              }
+            },
+            "content": {
+              "image/gif": {
+                "schema": { "type": "string", "format": "binary" }
+              },
+              "image/png": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "429": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Seconds until the applicable budget can retry"
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Present for MEDIA_BUSY only; one second"
+              }
+            }
+          }
+        },
+        "tags": ["public-read"],
+        "x-rate-limit": "Explicit PUBLIC_MEDIA_LIMIT_PER_MINUTE per socket peer; PUBLIC_MEDIA_MAX_CONCURRENT per process."
+      }
+    },
+    "/api/v1/review/queue": {
+      "get": {
+        "security": [{ "sessionCookie": [] }],
+        "description": "REVIEWER only. SUCCEEDED/PENDING queue ordered by createdAt/id descending, bounded UUID keyset pagination. X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "default": 24,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending review queue",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "assetId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "title": { "type": "string" },
+                          "ownerId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "processing": {
+                            "type": "string",
+                            "enum": [
+                              "NOT_STARTED",
+                              "QUEUED",
+                              "RUNNING",
+                              "SUCCEEDED",
+                              "FAILED_RETRYABLE",
+                              "FAILED_TERMINAL"
+                            ]
+                          },
+                          "moderation": {
+                            "type": "string",
+                            "enum": [
+                              "NOT_REQUESTED",
+                              "PENDING",
+                              "APPROVED",
+                              "REJECTED",
+                              "REMOVED"
+                            ]
+                          },
+                          "rowVersion": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "assetId",
+                          "title",
+                          "ownerId",
+                          "processing",
+                          "moderation",
+                          "rowVersion"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "required": ["items"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Present for MEDIA_BUSY only; one second"
+              }
+            }
+          }
+        },
+        "tags": ["internal-review"]
+      }
+    },
+    "/api/v1/review/assets/{assetId}": {
+      "get": {
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assetId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "description": "REVIEWER only. Metadata, independent states, private derivative preview paths and append-only decision/audit history. No object keys, versions or source URL. X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product.",
+        "responses": {
+          "200": {
+            "description": "Private reviewer detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "assetId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "title": { "type": "string" },
+                    "ownerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "processing": {
+                      "type": "string",
+                      "enum": [
+                        "NOT_STARTED",
+                        "QUEUED",
+                        "RUNNING",
+                        "SUCCEEDED",
+                        "FAILED_RETRYABLE",
+                        "FAILED_TERMINAL"
+                      ]
+                    },
+                    "moderation": {
+                      "type": "string",
+                      "enum": [
+                        "NOT_REQUESTED",
+                        "PENDING",
+                        "APPROVED",
+                        "REJECTED",
+                        "REMOVED"
+                      ]
+                    },
+                    "rowVersion": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "tags": { "type": "array", "items": { "type": "string" } },
+                    "states": {
+                      "type": "object",
+                      "properties": {
+                        "upload": {
+                          "type": "string",
+                          "enum": ["INTENT", "RECEIVED", "EXPIRED", "FAILED"]
+                        },
+                        "processing": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_STARTED",
+                            "QUEUED",
+                            "RUNNING",
+                            "SUCCEEDED",
+                            "FAILED_RETRYABLE",
+                            "FAILED_TERMINAL"
+                          ]
+                        },
+                        "visibility": {
+                          "type": "string",
+                          "enum": ["PRIVATE", "PUBLIC", "RESTRICTED"]
+                        },
+                        "searchEligibility": {
+                          "type": "string",
+                          "enum": ["INELIGIBLE", "ELIGIBLE"]
+                        },
+                        "indexing": {
+                          "type": "string",
+                          "enum": ["NOT_INDEXED", "INDEXED", "STALE"]
+                        },
+                        "apiAvailability": {
+                          "type": "string",
+                          "enum": ["BLOCKED", "ENABLED"]
+                        },
+                        "deliveryReadiness": {
+                          "type": "string",
+                          "enum": ["NOT_READY", "READY", "DEGRADED"]
+                        },
+                        "moderation": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_REQUESTED",
+                            "PENDING",
+                            "APPROVED",
+                            "REJECTED",
+                            "REMOVED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "upload",
+                        "processing",
+                        "visibility",
+                        "searchEligibility",
+                        "indexing",
+                        "apiAvailability",
+                        "deliveryReadiness",
+                        "moderation"
+                      ]
+                    },
+                    "rightsAttested": { "type": "boolean" },
+                    "previews": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "variant": {
+                            "type": "string",
+                            "enum": ["DISPLAY_GIF", "POSTER_PNG"]
+                          },
+                          "path": { "type": "string" }
+                        },
+                        "required": ["variant", "path"]
+                      }
+                    },
+                    "decisions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "reviewerId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "action": {
+                            "type": "string",
+                            "enum": ["APPROVE", "REJECT", "REMOVE"]
+                          },
+                          "reasonCode": { "type": "string" },
+                          "reasonNote": { "type": ["string", "null"] },
+                          "priorState": { "type": "string" },
+                          "decidedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "reviewerId",
+                          "action",
+                          "reasonCode",
+                          "reasonNote",
+                          "priorState",
+                          "decidedAt"
+                        ]
+                      }
+                    },
+                    "audit": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "eventType": { "type": "string" },
+                          "actorUserId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              { "type": "null" }
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "decisionId": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              { "type": "null" }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "eventType",
+                          "actorUserId",
+                          "createdAt",
+                          "decisionId"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "assetId",
+                    "title",
+                    "ownerId",
+                    "processing",
+                    "moderation",
+                    "rowVersion",
+                    "tags",
+                    "states",
+                    "rightsAttested",
+                    "previews",
+                    "decisions",
+                    "audit"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Present for MEDIA_BUSY only; one second"
+              }
+            }
+          }
+        },
+        "tags": ["internal-review"]
+      }
+    },
+    "/api/v1/review/assets/{assetId}/media/{variant}": {
+      "get": {
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assetId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "path",
+            "name": "variant",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["DISPLAY_GIF", "POSTER_PNG"]
+            }
+          }
+        ],
+        "description": "REVIEWER only; exact private derivative version with SHA256 verification. Never quarantine. No redirects or signed GET URLs; no-store, nosniff, same-origin. X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product.",
+        "responses": {
+          "200": {
+            "description": "Private verified preview",
+            "content": {
+              "image/gif": {
+                "schema": { "type": "string", "format": "binary" }
+              },
+              "image/png": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Present for MEDIA_BUSY only; one second"
+              }
+            }
+          }
+        },
+        "tags": ["internal-review"]
+      }
+    },
+    "/api/v1/review/assets/{assetId}/decision": {
+      "post": {
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assetId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "description": "REVIEWER and non-owner only. Locked version-guarded APPROVE/REJECT with decision, audit and search projection transaction. Approval verifies exact derivative HEAD, rights v1, technical readiness and PENDING. Exact replay by same actor/input version/semantics returns current state only while still current; other stale/conflicting inputs return 409. X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "reasonNote": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2000
+                      },
+                      "expectedVersion": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740990
+                      },
+                      "decision": { "type": "string", "const": "APPROVE" },
+                      "reasonCode": {
+                        "type": "string",
+                        "const": "POLICY_PASSED"
+                      }
+                    },
+                    "required": ["expectedVersion", "decision", "reasonCode"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "reasonNote": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2000
+                      },
+                      "expectedVersion": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740990
+                      },
+                      "decision": { "type": "string", "const": "REJECT" },
+                      "reasonCode": {
+                        "type": "string",
+                        "enum": [
+                          "POLICY_VIOLATION",
+                          "RIGHTS_CONCERN",
+                          "QUALITY_ISSUE",
+                          "OTHER"
+                        ]
+                      }
+                    },
+                    "required": ["expectedVersion", "decision", "reasonCode"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Committed moderation state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "states": {
+                      "type": "object",
+                      "properties": {
+                        "upload": {
+                          "type": "string",
+                          "enum": ["INTENT", "RECEIVED", "EXPIRED", "FAILED"]
+                        },
+                        "processing": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_STARTED",
+                            "QUEUED",
+                            "RUNNING",
+                            "SUCCEEDED",
+                            "FAILED_RETRYABLE",
+                            "FAILED_TERMINAL"
+                          ]
+                        },
+                        "visibility": {
+                          "type": "string",
+                          "enum": ["PRIVATE", "PUBLIC", "RESTRICTED"]
+                        },
+                        "searchEligibility": {
+                          "type": "string",
+                          "enum": ["INELIGIBLE", "ELIGIBLE"]
+                        },
+                        "indexing": {
+                          "type": "string",
+                          "enum": ["NOT_INDEXED", "INDEXED", "STALE"]
+                        },
+                        "apiAvailability": {
+                          "type": "string",
+                          "enum": ["BLOCKED", "ENABLED"]
+                        },
+                        "deliveryReadiness": {
+                          "type": "string",
+                          "enum": ["NOT_READY", "READY", "DEGRADED"]
+                        },
+                        "moderation": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_REQUESTED",
+                            "PENDING",
+                            "APPROVED",
+                            "REJECTED",
+                            "REMOVED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "upload",
+                        "processing",
+                        "visibility",
+                        "searchEligibility",
+                        "indexing",
+                        "apiAvailability",
+                        "deliveryReadiness",
+                        "moderation"
+                      ]
+                    },
+                    "rowVersion": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": ["id", "states", "rowVersion"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "413": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "415": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Present for MEDIA_BUSY only; one second"
+              }
+            }
+          }
+        },
+        "tags": ["internal-review"],
+        "x-write-security": {
+          "origin": "Exact configured origin; Fetch Metadata same-origin or none when present",
+          "csrf": "Session-bound X-CSRF-Token",
+          "bodyLimitBytes": 16384
+        }
+      }
+    },
+    "/api/v1/review/assets/{assetId}/remove": {
+      "post": {
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assetId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "description": "REVIEWER and non-owner only. APPROVED to REMOVED, authorization restriction and projection deletion atomically. Reason required. Exact current replay is idempotent; conflicts return 409. Subsequent public API and media-origin requests are denied after commit. X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "reasonNote": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "expectedVersion": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740990
+                  },
+                  "reasonCode": {
+                    "type": "string",
+                    "enum": [
+                      "POLICY_VIOLATION",
+                      "RIGHTS_CONCERN",
+                      "RIGHTS_REQUEST",
+                      "OTHER"
+                    ]
+                  }
+                },
+                "required": ["expectedVersion", "reasonCode"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Committed moderation state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "states": {
+                      "type": "object",
+                      "properties": {
+                        "upload": {
+                          "type": "string",
+                          "enum": ["INTENT", "RECEIVED", "EXPIRED", "FAILED"]
+                        },
+                        "processing": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_STARTED",
+                            "QUEUED",
+                            "RUNNING",
+                            "SUCCEEDED",
+                            "FAILED_RETRYABLE",
+                            "FAILED_TERMINAL"
+                          ]
+                        },
+                        "visibility": {
+                          "type": "string",
+                          "enum": ["PRIVATE", "PUBLIC", "RESTRICTED"]
+                        },
+                        "searchEligibility": {
+                          "type": "string",
+                          "enum": ["INELIGIBLE", "ELIGIBLE"]
+                        },
+                        "indexing": {
+                          "type": "string",
+                          "enum": ["NOT_INDEXED", "INDEXED", "STALE"]
+                        },
+                        "apiAvailability": {
+                          "type": "string",
+                          "enum": ["BLOCKED", "ENABLED"]
+                        },
+                        "deliveryReadiness": {
+                          "type": "string",
+                          "enum": ["NOT_READY", "READY", "DEGRADED"]
+                        },
+                        "moderation": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_REQUESTED",
+                            "PENDING",
+                            "APPROVED",
+                            "REJECTED",
+                            "REMOVED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "upload",
+                        "processing",
+                        "visibility",
+                        "searchEligibility",
+                        "indexing",
+                        "apiAvailability",
+                        "deliveryReadiness",
+                        "moderation"
+                      ]
+                    },
+                    "rowVersion": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": ["id", "states", "rowVersion"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "413": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "415": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Present for MEDIA_BUSY only; one second"
+              }
+            }
+          }
+        },
+        "tags": ["internal-review"],
+        "x-write-security": {
+          "origin": "Exact configured origin; Fetch Metadata same-origin or none when present",
+          "csrf": "Session-bound X-CSRF-Token",
+          "bodyLimitBytes": 16384
+        }
+      }
+    },
+    "/api/v1/uploads": {
+      "post": {
+        "security": [{ "sessionCookie": [] }],
+        "description": "UPLOADER only. Private quarantine intent; same owner/key and normalized metadata reuse one asset until expiry. Conflicting metadata returns 409 IDEMPOTENCY_CONFLICT. No file decoding or publication. X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "kind": { "type": "string", "const": "GIF" },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "tags": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    }
+                  },
+                  "rightsAttested": { "type": "boolean", "const": true },
+                  "rightsAttestationVersion": {
+                    "type": "string",
+                    "const": "v1"
+                  },
+                  "claimedSizeBytes": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "kind",
+                  "title",
+                  "tags",
+                  "rightsAttested",
+                  "rightsAttestationVersion"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Private upload intent (including replay)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "assetId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "uploadId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "method": { "type": "string", "const": "POST" },
+                    "form": {
+                      "type": "object",
+                      "properties": {
+                        "url": { "type": "string", "format": "uri" },
+                        "fields": {
+                          "type": "object",
+                          "propertyNames": { "type": "string" },
+                          "additionalProperties": { "type": "string" }
+                        }
+                      },
+                      "required": ["url", "fields"]
+                    },
+                    "state": {
+                      "type": "object",
+                      "properties": {
+                        "upload": {
+                          "type": "string",
+                          "enum": ["INTENT", "RECEIVED", "EXPIRED", "FAILED"]
+                        },
+                        "processing": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_STARTED",
+                            "QUEUED",
+                            "RUNNING",
+                            "SUCCEEDED",
+                            "FAILED_RETRYABLE",
+                            "FAILED_TERMINAL"
+                          ]
+                        }
+                      },
+                      "required": ["upload", "processing"]
+                    }
+                  },
+                  "required": [
+                    "assetId",
+                    "uploadId",
+                    "expiresAt",
+                    "method",
+                    "form",
+                    "state"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "413": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "415": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "429": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Seconds until the applicable budget can retry"
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Present for MEDIA_BUSY only; one second"
+              }
+            }
+          }
+        },
+        "tags": ["first-party-session"],
+        "x-write-security": {
+          "origin": "Exact configured origin; Fetch Metadata same-origin or none when present",
+          "csrf": "Session-bound X-CSRF-Token",
+          "bodyLimitBytes": 16384
+        },
+        "x-rate-limit": "20 new intents per owner per 900 seconds, database serialized; exact replay does not consume quota."
+      }
+    },
+    "/api/v1/uploads/{uploadId}/complete": {
+      "post": {
+        "security": [{ "sessionCookie": [] }],
+        "description": "Owner with UPLOADER grant and CSRF. Real versioned S3 HEAD; atomically persists receipt, states, READY job and audit. Idempotent replay returns current receipt even after deadline. Unreceived expired session returns 410. X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uploadId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Received privately; processing queued, not processed or published",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "assetId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "upload": {
+                      "type": "string",
+                      "enum": ["INTENT", "RECEIVED", "EXPIRED", "FAILED"]
+                    },
+                    "processing": {
+                      "type": "string",
+                      "enum": [
+                        "NOT_STARTED",
+                        "QUEUED",
+                        "RUNNING",
+                        "SUCCEEDED",
+                        "FAILED_RETRYABLE",
+                        "FAILED_TERMINAL"
+                      ]
+                    }
+                  },
+                  "required": ["assetId", "upload", "processing"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "410": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "413": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "415": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Present for MEDIA_BUSY only; one second"
+              }
+            }
+          }
+        },
+        "tags": ["first-party-session"],
+        "x-write-security": {
+          "origin": "Exact configured origin; Fetch Metadata same-origin or none when present",
+          "csrf": "Session-bound X-CSRF-Token",
+          "bodyLimitBytes": 16384
+        }
+      }
+    },
+    "/api/v1/me/assets": {
+      "get": {
+        "security": [{ "sessionCookie": [] }],
+        "description": "Owner receipts only, newest first; UUID keyset cursor, 24 rows. No media URLs or quarantine metadata. X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Private owner receipts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "title": { "type": "string" },
+                          "tags": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                          },
+                          "states": {
+                            "type": "object",
+                            "properties": {
+                              "upload": {
+                                "type": "string",
+                                "enum": [
+                                  "INTENT",
+                                  "RECEIVED",
+                                  "EXPIRED",
+                                  "FAILED"
+                                ]
+                              },
+                              "processing": {
+                                "type": "string",
+                                "enum": [
+                                  "NOT_STARTED",
+                                  "QUEUED",
+                                  "RUNNING",
+                                  "SUCCEEDED",
+                                  "FAILED_RETRYABLE",
+                                  "FAILED_TERMINAL"
+                                ]
+                              },
+                              "visibility": {
+                                "type": "string",
+                                "enum": ["PRIVATE", "PUBLIC", "RESTRICTED"]
+                              },
+                              "searchEligibility": {
+                                "type": "string",
+                                "enum": ["INELIGIBLE", "ELIGIBLE"]
+                              },
+                              "indexing": {
+                                "type": "string",
+                                "enum": ["NOT_INDEXED", "INDEXED", "STALE"]
+                              },
+                              "apiAvailability": {
+                                "type": "string",
+                                "enum": ["BLOCKED", "ENABLED"]
+                              },
+                              "deliveryReadiness": {
+                                "type": "string",
+                                "enum": ["NOT_READY", "READY", "DEGRADED"]
+                              },
+                              "moderation": {
+                                "type": "string",
+                                "enum": [
+                                  "NOT_REQUESTED",
+                                  "PENDING",
+                                  "APPROVED",
+                                  "REJECTED",
+                                  "REMOVED"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "upload",
+                              "processing",
+                              "visibility",
+                              "searchEligibility",
+                              "indexing",
+                              "apiAvailability",
+                              "deliveryReadiness",
+                              "moderation"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "variantsReady": { "type": "boolean" },
+                          "rowVersion": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "errorCode": { "type": "string" },
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        },
+                        "required": [
+                          "title",
+                          "tags",
+                          "states",
+                          "createdAt",
+                          "variantsReady",
+                          "rowVersion",
+                          "id"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "required": ["items"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Present for MEDIA_BUSY only; one second"
+              }
+            }
+          }
+        },
+        "tags": ["first-party-session"]
+      }
+    },
+    "/api/v1/me/assets/{assetId}": {
+      "get": {
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assetId",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Private owner status; other owners receive 404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "assetId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "title": { "type": "string" },
+                    "tags": { "type": "array", "items": { "type": "string" } },
+                    "states": {
+                      "type": "object",
+                      "properties": {
+                        "upload": {
+                          "type": "string",
+                          "enum": ["INTENT", "RECEIVED", "EXPIRED", "FAILED"]
+                        },
+                        "processing": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_STARTED",
+                            "QUEUED",
+                            "RUNNING",
+                            "SUCCEEDED",
+                            "FAILED_RETRYABLE",
+                            "FAILED_TERMINAL"
+                          ]
+                        },
+                        "visibility": {
+                          "type": "string",
+                          "enum": ["PRIVATE", "PUBLIC", "RESTRICTED"]
+                        },
+                        "searchEligibility": {
+                          "type": "string",
+                          "enum": ["INELIGIBLE", "ELIGIBLE"]
+                        },
+                        "indexing": {
+                          "type": "string",
+                          "enum": ["NOT_INDEXED", "INDEXED", "STALE"]
+                        },
+                        "apiAvailability": {
+                          "type": "string",
+                          "enum": ["BLOCKED", "ENABLED"]
+                        },
+                        "deliveryReadiness": {
+                          "type": "string",
+                          "enum": ["NOT_READY", "READY", "DEGRADED"]
+                        },
+                        "moderation": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_REQUESTED",
+                            "PENDING",
+                            "APPROVED",
+                            "REJECTED",
+                            "REMOVED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "upload",
+                        "processing",
+                        "visibility",
+                        "searchEligibility",
+                        "indexing",
+                        "apiAvailability",
+                        "deliveryReadiness",
+                        "moderation"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "variantsReady": { "type": "boolean" },
+                    "rowVersion": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "errorCode": { "type": "string" }
+                  },
+                  "required": [
+                    "assetId",
+                    "title",
+                    "tags",
+                    "states",
+                    "createdAt",
+                    "variantsReady",
+                    "rowVersion"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Present for MEDIA_BUSY only; one second"
+              }
+            }
+          }
+        },
+        "tags": ["first-party-session"],
+        "description": " X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product."
+      }
+    },
+    "/api/v1/health/live": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Process is live",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "const": "ok" }
+                  },
+                  "required": ["status"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          }
+        },
+        "security": [],
+        "tags": ["internal-health"],
+        "description": " X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product."
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Dependencies ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["ready", "not_ready"]
+                    },
+                    "checks": {
+                      "type": "object",
+                      "properties": {
+                        "database": {
+                          "type": "string",
+                          "enum": ["up", "down"]
+                        },
+                        "storage": { "type": "string", "enum": ["up", "down"] }
+                      },
+                      "required": ["database", "storage"]
+                    }
+                  },
+                  "required": ["status", "checks"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependencies unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["ready", "not_ready"]
+                    },
+                    "checks": {
+                      "type": "object",
+                      "properties": {
+                        "database": {
+                          "type": "string",
+                          "enum": ["up", "down"]
+                        },
+                        "storage": { "type": "string", "enum": ["up", "down"] }
+                      },
+                      "required": ["database", "storage"]
+                    }
+                  },
+                  "required": ["status", "checks"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          }
+        },
+        "security": [],
+        "tags": ["internal-health"],
+        "description": " X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product."
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "description": "Exact configured Origin and application/json required. Fetch Metadata, when present, must be same-origin or none. Rate limited per account and peer IP. Replaces prior session on success. X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "maxLength": 254 },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  }
+                },
+                "required": ["email", "password"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated; CSRF token is bound to the session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email",
+                          "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                        },
+                        "roles": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["UPLOADER", "REVIEWER", "ADMIN"]
+                          }
+                        }
+                      },
+                      "required": ["id", "email", "roles"]
+                    },
+                    "csrfToken": { "type": "string" }
+                  },
+                  "required": ["user", "csrfToken"]
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "schema": { "type": "string" },
+                "description": "Opaque session cookie with absolute expiry"
+              },
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "413": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "415": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "429": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Seconds until the applicable budget can retry"
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Present for MEDIA_BUSY only; one second"
+              }
+            }
+          }
+        },
+        "security": [],
+        "tags": ["first-party-session"],
+        "x-write-security": {
+          "origin": "Exact configured origin; Fetch Metadata same-origin or none when present",
+          "csrf": "Origin protection, no session CSRF yet",
+          "bodyLimitBytes": 16384
+        },
+        "x-rate-limit": "10 per normalized account and 50 per socket peer per 900 seconds; 10000-entry bounded process-local map."
+      }
+    },
+    "/api/v1/auth/session": {
+      "get": {
+        "description": "Optional cookie. Invalid, expired, revoked or disabled-user sessions return authenticated:false. Responses are never cached. X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product.",
+        "responses": {
+          "200": {
+            "description": "Current session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "authenticated": { "type": "boolean", "const": false }
+                      },
+                      "required": ["authenticated"]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "authenticated": { "type": "boolean", "const": true },
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "email": {
+                              "type": "string",
+                              "format": "email",
+                              "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                            },
+                            "roles": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": ["UPLOADER", "REVIEWER", "ADMIN"]
+                              }
+                            }
+                          },
+                          "required": ["id", "email", "roles"]
+                        },
+                        "csrfToken": { "type": "string" }
+                      },
+                      "required": ["authenticated", "user", "csrfToken"]
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Present for MEDIA_BUSY only; one second"
+              }
+            }
+          }
+        },
+        "security": [],
+        "tags": ["first-party-session"]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "description": "No body or an empty JSON object. Revokes server-side session and expires cookie. X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product.",
+        "responses": {
+          "204": {
+            "description": "Revoked and cookie cleared",
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "413": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "415": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Present for MEDIA_BUSY only; one second"
+              }
+            }
+          }
+        },
+        "tags": ["first-party-session"],
+        "x-write-security": {
+          "origin": "Exact configured origin; Fetch Metadata same-origin or none when present",
+          "csrf": "Session-bound X-CSRF-Token",
+          "bodyLimitBytes": 16384
+        }
+      }
+    },
+    "/api/v1/review": {
+      "get": {
+        "security": [{ "sessionCookie": [] }],
+        "description": "Reviewer authorization checkpoint; requires explicit REVIEWER grant. B05 workflow routes are under /review/queue and /review/assets. X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product.",
+        "responses": {
+          "200": {
+            "description": "Reviewer access verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } },
+                  "required": ["message"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "401": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "403": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              }
+            }
+          },
+          "503": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string" },
+                        "message": { "type": "string" },
+                        "requestId": { "type": "string" }
+                      },
+                      "required": ["code", "message", "requestId"]
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "schema": { "type": "string", "format": "uuid" }
+              },
+              "Cache-Control": {
+                "schema": { "type": "string" },
+                "description": "no-store"
+              },
+              "Retry-After": {
+                "schema": { "type": "integer", "minimum": 1 },
+                "description": "Present for MEDIA_BUSY only; one second"
+              }
+            }
+          }
+        },
+        "tags": ["internal-review"]
+      }
+    }
+  }
+}

@@ -32,7 +32,8 @@
     "api:generate": "pnpm build:packages && node scripts/generate-openapi.mjs",
     "api:check": "pnpm build:packages && node scripts/generate-openapi.mjs --check",
     "storage:provision:dev": "node scripts/provision-storage.mjs",
-    "build:decoder": "node scripts/build-decoder.mjs"
+    "build:decoder": "node scripts/build-decoder.mjs",
+    "staging": "node scripts/staging.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.922.0",

@@ -1,0 +1,70 @@
+B09 executed evidence: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39114693205
+PR head: b7a108d4fdbe91187de211e35e811c6a9f8d5453
+CI checkout/image source: 33113d8887be0c4d9ef365b31cc4323edc69f16d
+Safe staging artifact: https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39114693205/artifacts/12131203761
+Artifact SHA256: sha256:931c57de56ec850a42e5beb6551994ec35bc4f265692b413bef22998b4294bac
+
+JOB b00: SUCCESS
+2026-10-18T09:16:54.5920534Z PASS: regression sources contain no skip/todo/only or conditional gate declarations
+2026-10-18T09:16:54.5924751Z PASS: real staging sources contain no network mocks or fixme gates
+2026-10-18T09:17:54.3371399Z  Test Files  15 passed (15)
+2026-10-18T09:17:54.3372514Z       Tests  104 passed (104)
+2026-10-18T09:21:12.2378514Z PASS: single-origin home, liveness and dependency readiness
+2026-10-18T09:22:05.8814082Z  Test Files  8 passed (8)
+2026-10-18T09:22:05.8814808Z       Tests  88 passed (88)
+2026-10-18T09:22:46.2463037Z   25 passed (24.3s)
+2026-10-18T09:22:50.6971183Z PASS: single-origin home, liveness and dependency readiness
+2026-10-18T09:22:52.5694747Z PASS: actual upload/processed worker logs exclude sessions, CSRF, signatures, storage keys, temporary paths, decoder output and credentials
+2026-10-18T09:22:53.8593712Z PASS: actual upload/processed worker logs exclude sessions, CSRF, signatures, storage keys, temporary paths, decoder output and credentials
+2026-10-18T09:23:04.3382665Z PASS: db stopped -> readiness 503, liveness 200, browser unavailable
+2026-10-18T09:23:09.3961810Z PASS: db restored -> readiness 200, browser ready
+2026-10-18T09:23:14.8233157Z PASS: minio stopped -> readiness 503, liveness 200, browser unavailable
+2026-10-18T09:23:19.2963932Z PASS: minio restored -> readiness 200, browser ready
+2026-10-18T09:23:24.4846852Z PASS: API stopped -> edge 502, home still renders, browser unavailable
+2026-10-18T09:23:30.5744003Z PASS: API restored -> readiness 200, browser ready
+2026-10-18T09:23:30.9962625Z PASS: worker SIGTERM exits 0 and records graceful shutdown
+2026-10-18T09:23:32.9335557Z PASS: all six service logs exclude configured credentials/DB URL
+2026-10-18T09:23:45.3291734Z PASS: single-origin home, liveness and dependency readiness
+2026-10-18T09:23:45.3298833Z PASS: fresh local volumes reboot all six services and readiness 200
+
+JOB b01-database: SUCCESS
+2026-10-18T09:17:27.8490784Z  Test Files  4 passed (4)
+2026-10-18T09:17:27.8491885Z       Tests  37 passed (37)
+
+JOB b09-staging: SUCCESS
+2026-10-18T09:16:52.1614012Z PASS: regression sources contain no skip/todo/only or conditional gate declarations
+2026-10-18T09:16:52.1617804Z PASS: real staging sources contain no network mocks or fixme gates
+2026-10-18T09:17:22.2175640Z PASS: explicit nonproduction staging configuration and resolved production filesystem isolation
+2026-10-18T09:20:23.0909211Z PASS: four local image identities and pinned PostgreSQL recorded; nothing published
+2026-10-18T09:20:28.0753133Z {"event":"staging_admin","command":"migrate","status":"passed"}
+2026-10-18T09:20:28.8580452Z {"event":"staging_admin","command":"migrate","status":"passed"}
+2026-10-18T09:20:29.5444627Z {"event":"staging_inventory","counts":{"users":0,"assets":0,"asset_variants":0,"media_jobs":0,"moderation_decisions":0,"audit_events":0}}
+2026-10-18T09:20:29.5445534Z {"event":"staging_admin","command":"inventory-empty","status":"passed"}
+2026-10-18T09:20:30.4087896Z {"event":"staging_admin","command":"provision","status":"passed"}
+2026-10-18T09:20:31.7585227Z {"event":"staging_admin","command":"bootstrap","status":"passed"}
+2026-10-18T09:20:32.4936245Z {"event":"staging_admin","command":"bootstrap","status":"passed"}
+2026-10-18T09:20:33.3175889Z {"event":"staging_admin","command":"verify","status":"passed"}
+2026-10-18T09:20:39.2195965Z PASS: HTTPS liveness, dependency readiness, browser S3 endpoint, Web, Picker and restricted Worker readiness
+2026-10-18T09:20:39.6765123Z PASS: HTTPS liveness, dependency readiness, browser S3 endpoint, Web, Picker and restricted Worker readiness
+2026-10-18T09:20:41.3964806Z PASS: empty public platform and actual liveness/readiness
+2026-10-18T09:20:41.6691771Z PASS: authorized uploader authenticated with Secure HttpOnly session
+2026-10-18T09:20:42.1338316Z PASS: real browser signed TLS POST, private durable receipt, quarantine GET denied
+2026-10-18T09:20:43.9930118Z PASS: signed-form replay creates a newer private source version without changing the pinned receipt or derivatives
+2026-10-18T09:20:44.0023543Z PASS: real Worker processing, private derivatives, idempotent complete and uploader approval denial
+2026-10-18T09:20:44.5548391Z PASS: distinct human-role moderator decoded private derivatives and approved once with audit
+2026-10-18T09:20:45.0193765Z PASS: eligible public search, actual Web detail and sanitized aliases; no private identifiers in DTOs
+2026-10-18T09:20:45.3024174Z PASS: Host received selected only: Selected; no host action performed. No write request
+2026-10-18T09:20:45.4680984Z PASS: real Picker Escape/Cancel, restored focus and accessible empty search
+2026-10-18T09:20:45.5151605Z PASS: nonempty native search input Escape cancels exactly once and restores Host focus
+2026-10-18T09:20:45.9708482Z PASS: takedown denies fresh origin/detail/search and stale Picker selection; approval/removal audit retained
+2026-10-18T09:20:48.0750806Z PASS: typed static-GIF failure stays private; same owner starts a new valid upload
+2026-10-18T09:20:50.1507181Z PASS: same owner completed a distinct valid new upload after typed failure; new derivatives remain pending/private
+2026-10-18T09:20:50.2417882Z   1 passed (10.1s)
+2026-10-18T09:20:50.6216566Z PASS: actual staging service logs exclude configured credentials, connection strings, private object paths and token/signature fields
+2026-10-18T09:20:52.1068026Z PASS: quiescent PostgreSQL dump and complete MinIO version/identity volume captured. Services remain stopped. Backup is PRIVATE.
+2026-10-18T09:20:56.9274409Z {"event":"staging_admin","command":"provision","status":"passed"}
+2026-10-18T09:20:57.6747921Z {"event":"staging_admin","command":"migrate","status":"passed"}
+2026-10-18T09:20:58.6602999Z {"event":"staging_admin","command":"verify","status":"passed"}
+2026-10-18T09:21:04.2979401Z PASS: HTTPS liveness, dependency readiness, browser S3 endpoint, Web, Picker and restricted Worker readiness
+2026-10-18T09:21:04.4561868Z PASS: restored exact derivative hashes/versions via authenticated preview, identical decision/audit trail, and removed-media denial
+2026-10-18T09:21:04.9266373Z PASS: disposable restore drill; restored volumes retained under recorded project for inspection

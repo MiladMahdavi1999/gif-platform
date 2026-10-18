@@ -18,6 +18,7 @@ export function createApp(
   uploads?: UploadOptions,
   review?: ReviewOptions,
   publicOptions?: PublicOptions,
+  observeRoute?: (method: string, path: string) => void,
 ) {
   const app = Fastify({
     genReqId: () => randomUUID(),
@@ -35,6 +36,13 @@ export function createApp(
     logController: new LogController({ disableRequestLogging: true }),
     requestTimeout: 5000,
     bodyLimit: 16384,
+  });
+
+  app.addHook('onRoute', (route) => {
+    for (const method of Array.isArray(route.method)
+      ? route.method
+      : [route.method])
+      observeRoute?.(method, route.url);
   });
 
   app.addHook('onSend', async (request, reply) => {

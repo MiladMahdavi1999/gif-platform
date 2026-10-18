@@ -44,7 +44,15 @@ export function GifPicker(callbacks: PickerCallbacks) {
     setSelecting(true);
     void session.current?.select(id);
   };
-  const trapFocus = (event: KeyboardEvent<HTMLDialogElement>) => {
+  const handleDialogKey = (event: KeyboardEvent<HTMLDialogElement>) => {
+    // A native nonempty search input otherwise consumes Escape to clear text.
+    // The Picker contract requires cancellation from every focused control.
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      session.current?.cancel();
+      return;
+    }
     if (event.key !== 'Tab') return;
     const controls = Array.from(
       event.currentTarget.querySelectorAll<HTMLElement>(
@@ -68,7 +76,7 @@ export function GifPicker(callbacks: PickerCallbacks) {
       className="gif-picker"
       aria-labelledby={titleId}
       aria-describedby={helpId}
-      onKeyDown={trapFocus}
+      onKeyDown={handleDialogKey}
       onCancel={(event) => {
         event.preventDefault();
         session.current?.cancel();

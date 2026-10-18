@@ -98,6 +98,28 @@ it('bootstraps idempotently without changing hashes or creating content', async 
     (await client.query('SELECT count(*) FROM assets')).rows[0].count,
   ).toBe('0');
 });
+it('API can take the existing authentication/upload and review identity row locks', async () => {
+  await client.query('BEGIN');
+  try {
+    await client.query('SET LOCAL ROLE gif_staging_api');
+    expect(
+      (
+        await client.query(
+          'SELECT id FROM users ORDER BY id LIMIT 1 FOR UPDATE',
+        )
+      ).rowCount,
+    ).toBe(1);
+    expect(
+      (
+        await client.query(
+          "SELECT u.id FROM users u JOIN role_grants g ON g.user_id=u.id WHERE u.status='ACTIVE' AND g.role='REVIEWER' FOR SHARE OF u,g",
+        )
+      ).rowCount,
+    ).toBe(1);
+  } finally {
+    await client.query('ROLLBACK');
+  }
+});
 it('refuses password and role conflicts without granting self-approval', async () => {
   await expect(
     bootstrapStagingIdentities(client, {
@@ -127,6 +149,9 @@ it('API cannot mutate audit history, credentials, roles or schema', async () => 
   for (const sql of [
     "UPDATE audit_events SET event_type='FORGED'",
     "UPDATE users SET password_hash='FORGED'",
+    'UPDATE users SET id=id',
+    'UPDATE role_grants SET user_id=user_id',
+    "UPDATE role_grants SET role='ADMIN'",
     "INSERT INTO role_grants SELECT id,'ADMIN' FROM users",
     'CREATE TABLE forged(id integer)',
     'SELECT public.processing_request_review(gen_random_uuid())',

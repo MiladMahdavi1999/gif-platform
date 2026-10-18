@@ -60,8 +60,27 @@ export async function provisionStagingRoles(
       ).rows[0].sql;
       await client.query(sql);
     }
+    // PostgreSQL row locks require UPDATE on at least one column. The runtime
+    // locks users and role grants to fence disable/revocation races, but must
+    // never gain identity mutation authority from those lock-only grants.
+    await client.query(`CREATE OR REPLACE FUNCTION public.staging_guard_identity_updates() RETURNS trigger
+      LANGUAGE plpgsql AS $$ BEGIN
+        IF current_user='gif_staging_api' THEN
+          RAISE EXCEPTION 'Identity mutation denied' USING ERRCODE='42501';
+        END IF;
+        RETURN NEW;
+      END; $$;
+      REVOKE ALL ON FUNCTION public.staging_guard_identity_updates() FROM PUBLIC;
+      DROP TRIGGER IF EXISTS staging_users_lock_only ON public.users;
+      CREATE TRIGGER staging_users_lock_only BEFORE UPDATE ON public.users
+        FOR EACH ROW EXECUTE FUNCTION public.staging_guard_identity_updates();
+      DROP TRIGGER IF EXISTS staging_grants_lock_only ON public.role_grants;
+      CREATE TRIGGER staging_grants_lock_only BEFORE UPDATE ON public.role_grants
+        FOR EACH ROW EXECUTE FUNCTION public.staging_guard_identity_updates();`);
     await client.query(`GRANT USAGE ON SCHEMA public TO gif_staging_api, gif_processing_worker;
       GRANT SELECT ON users,role_grants,sessions,assets,asset_states,upload_sessions,tags,asset_tags,asset_variants,media_jobs,moderation_decisions,search_documents,audit_events TO gif_staging_api;
+      GRANT UPDATE(id) ON users TO gif_staging_api;
+      GRANT UPDATE(user_id) ON role_grants TO gif_staging_api;
       GRANT INSERT ON sessions,assets,asset_states,upload_sessions,tags,asset_tags,media_jobs,moderation_decisions,search_documents,audit_events TO gif_staging_api;
       GRANT UPDATE ON sessions,assets,asset_states,upload_sessions,tags,search_documents TO gif_staging_api;
       GRANT DELETE ON search_documents TO gif_staging_api;

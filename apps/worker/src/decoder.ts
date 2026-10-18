@@ -8,6 +8,25 @@ const sandbox = fileURLToPath(
   new URL('../../../infra/decoder/sandbox.so', import.meta.url),
 );
 const marker = Buffer.from('gif-sandbox-v1\n');
+export type DecoderStage =
+  | 'input_validation'
+  | 'source_probe'
+  | 'display_render'
+  | 'display_probe'
+  | 'display_compare'
+  | 'poster_render'
+  | 'poster_probe'
+  | 'poster_compare';
+// Only controlled stage/code values cross the decoder boundary. No stderr,
+// command arguments, input bytes, file names or Error.cause are retained.
+export class DecoderFault extends ProcessingFault {
+  constructor(
+    fault: ProcessingFault,
+    public readonly stage: DecoderStage,
+  ) {
+    super(fault.code, fault.retryable);
+  }
+}
 export async function runDecoder(
   binary: 'ffmpeg' | 'ffprobe',
   args: string[],
@@ -179,132 +198,145 @@ export async function renderGif(
   config: WorkerConfig,
   signal: AbortSignal,
 ) {
-  const input = await readFile(path);
-  if (input.length > config.MAX_GIF_UPLOAD_BYTES)
-    throw new ProcessingFault('MEDIA_TOO_LARGE');
-  if (
-    input.length < 14 ||
-    !['GIF87a', 'GIF89a'].includes(input.subarray(0, 6).toString('ascii')) ||
-    input.at(-1) !== 0x3b
-  )
-    throw new ProcessingFault('MEDIA_INVALID');
-  dimensions(input.readUInt16LE(6), input.readUInt16LE(8), config);
-  const source = await probe(input, 'gif', config, signal);
-  if (source.frameCount < 2) throw new ProcessingFault('MEDIA_NOT_ANIMATED');
-  const common = [
-    '-nostdin',
-    '-v',
-    'error',
-    '-xerror',
-    '-max_alloc',
-    '67108864',
-    '-threads',
-    '1',
-    '-filter_threads',
-    '1',
-    '-filter_complex_threads',
-    '1',
-    '-protocol_whitelist',
-    'pipe',
-  ];
-  const display = await runDecoder(
-    'ffmpeg',
-    [
-      ...common,
-      '-f',
-      'gif',
-      '-i',
-      'pipe:0',
-      '-filter_complex',
-      '[0:v]split[a][b];[a]palettegen[p];[b][p]paletteuse[v]',
-      '-map',
-      '[v]',
-      '-map_metadata',
-      '-1',
-      '-an',
+  let stage: DecoderStage = 'input_validation';
+  try {
+    const input = await readFile(path);
+    if (input.length > config.MAX_GIF_UPLOAD_BYTES)
+      throw new ProcessingFault('MEDIA_TOO_LARGE');
+    if (
+      input.length < 14 ||
+      !['GIF87a', 'GIF89a'].includes(input.subarray(0, 6).toString('ascii')) ||
+      input.at(-1) !== 0x3b
+    )
+      throw new ProcessingFault('MEDIA_INVALID');
+    dimensions(input.readUInt16LE(6), input.readUInt16LE(8), config);
+    stage = 'source_probe';
+    const source = await probe(input, 'gif', config, signal);
+    if (source.frameCount < 2) throw new ProcessingFault('MEDIA_NOT_ANIMATED');
+    const common = [
+      '-nostdin',
+      '-v',
+      'error',
+      '-xerror',
+      '-max_alloc',
+      '67108864',
       '-threads',
       '1',
-      '-fps_mode',
-      'passthrough',
-      '-loop',
-      '0',
-      '-f',
-      'gif',
-      'pipe:1',
-    ],
-    input,
-    config.MAX_GIF_OUTPUT_BYTES,
-    config.MEDIA_EXECUTION_TIMEOUT_MS,
-    signal,
-  );
-  const displayMeta = await probe(display, 'gif', config, signal);
-  if (
-    displayMeta.frameCount !== source.frameCount ||
-    displayMeta.width !== source.width ||
-    displayMeta.height !== source.height ||
-    displayMeta.durationMs !== source.durationMs
-  )
-    throw new ProcessingFault('MEDIA_DECODE_FAILED');
-  const poster = await runDecoder(
-    'ffmpeg',
-    [
-      ...common,
-      '-f',
-      'gif',
-      '-i',
-      'pipe:0',
-      '-map',
-      '0:v:0',
-      '-map_metadata',
-      '-1',
-      '-an',
-      '-frames:v',
+      '-filter_threads',
       '1',
-      '-threads',
+      '-filter_complex_threads',
       '1',
-      '-c:v',
-      'png',
-      '-f',
-      'image2pipe',
-      'pipe:1',
-    ],
-    display,
-    config.MAX_GIF_OUTPUT_BYTES,
-    config.MEDIA_EXECUTION_TIMEOUT_MS,
-    signal,
-  );
-  const posterMeta = await probe(poster, 'png_pipe', config, signal);
-  if (
-    posterMeta.frameCount !== 1 ||
-    posterMeta.width !== source.width ||
-    posterMeta.height !== source.height
-  )
-    throw new ProcessingFault('MEDIA_DECODE_FAILED');
-  return Promise.all(
-    (
+      '-protocol_whitelist',
+      'pipe',
+    ];
+    stage = 'display_render';
+    const display = await runDecoder(
+      'ffmpeg',
       [
-        {
-          name: 'DISPLAY_GIF',
-          bytes: display,
-          mimeType: 'image/gif',
-          ...displayMeta,
-        },
-        {
-          name: 'POSTER_PNG',
-          bytes: poster,
-          mimeType: 'image/png',
-          ...posterMeta,
-        },
-      ] as const
-    ).map(async (v) => {
-      await writeFile(`${path}.${v.name}`, v.bytes, {
-        flag: 'wx',
-        mode: 0o600,
-      });
-      return {
-        ...v,
-        sha256: createHash('sha256').update(v.bytes).digest('hex'),
-      };
-    }),
-  );
+        ...common,
+        '-f',
+        'gif',
+        '-i',
+        'pipe:0',
+        '-filter_complex',
+        '[0:v]split[a][b];[a]palettegen[p];[b][p]paletteuse[v]',
+        '-map',
+        '[v]',
+        '-map_metadata',
+        '-1',
+        '-an',
+        '-threads',
+        '1',
+        '-fps_mode',
+        'passthrough',
+        '-loop',
+        '0',
+        '-f',
+        'gif',
+        'pipe:1',
+      ],
+      input,
+      config.MAX_GIF_OUTPUT_BYTES,
+      config.MEDIA_EXECUTION_TIMEOUT_MS,
+      signal,
+    );
+    stage = 'display_probe';
+    const displayMeta = await probe(display, 'gif', config, signal);
+    stage = 'display_compare';
+    if (
+      displayMeta.frameCount !== source.frameCount ||
+      displayMeta.width !== source.width ||
+      displayMeta.height !== source.height ||
+      displayMeta.durationMs !== source.durationMs
+    )
+      throw new ProcessingFault('MEDIA_DECODE_FAILED');
+    stage = 'poster_render';
+    const poster = await runDecoder(
+      'ffmpeg',
+      [
+        ...common,
+        '-f',
+        'gif',
+        '-i',
+        'pipe:0',
+        '-map',
+        '0:v:0',
+        '-map_metadata',
+        '-1',
+        '-an',
+        '-frames:v',
+        '1',
+        '-threads',
+        '1',
+        '-c:v',
+        'png',
+        '-f',
+        'image2pipe',
+        'pipe:1',
+      ],
+      display,
+      config.MAX_GIF_OUTPUT_BYTES,
+      config.MEDIA_EXECUTION_TIMEOUT_MS,
+      signal,
+    );
+    stage = 'poster_probe';
+    const posterMeta = await probe(poster, 'png_pipe', config, signal);
+    stage = 'poster_compare';
+    if (
+      posterMeta.frameCount !== 1 ||
+      posterMeta.width !== source.width ||
+      posterMeta.height !== source.height
+    )
+      throw new ProcessingFault('MEDIA_DECODE_FAILED');
+    return Promise.all(
+      (
+        [
+          {
+            name: 'DISPLAY_GIF',
+            bytes: display,
+            mimeType: 'image/gif',
+            ...displayMeta,
+          },
+          {
+            name: 'POSTER_PNG',
+            bytes: poster,
+            mimeType: 'image/png',
+            ...posterMeta,
+          },
+        ] as const
+      ).map(async (v) => {
+        await writeFile(`${path}.${v.name}`, v.bytes, {
+          flag: 'wx',
+          mode: 0o600,
+        });
+        return {
+          ...v,
+          sha256: createHash('sha256').update(v.bytes).digest('hex'),
+        };
+      }),
+    );
+  } catch (error) {
+    if (error instanceof ProcessingFault) throw new DecoderFault(error, stage);
+    throw error;
+  }
 }

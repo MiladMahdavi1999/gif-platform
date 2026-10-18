@@ -70,7 +70,7 @@ const config: StorageConfig = {
   S3_SECRET_ACCESS_KEY: process.env.TEST_S3_SECRET_ACCESS_KEY!,
   S3_QUARANTINE_BUCKET: `gif-b04-${suffix}`,
   S3_DERIVATIVES_BUCKET: `gif-b04-out-${suffix}`,
-  MAX_GIF_UPLOAD_BYTES: 1024,
+  MAX_GIF_UPLOAD_BYTES: 4 * 1024 * 1024,
 };
 if (
   !config.S3_ACCESS_KEY_ID ||
@@ -536,7 +536,9 @@ describe('B04 real PostgreSQL, MinIO, FFmpeg and process recovery', () => {
   });
   it('processes B03 pinned original despite overwrite, verifies real hashes/metadata/HEAD and all eight axes', async () => {
     await expect(outputStorage.check()).resolves.toBeUndefined();
-    const value = await queued();
+    const value = await queued(
+      animatedGif({ width: 165, height: 293, frameCount: 93 }),
+    );
     await s3.send(
       new PutObjectCommand({
         Bucket: config.S3_QUARANTINE_BUCKET,
@@ -570,8 +572,8 @@ describe('B04 real PostgreSQL, MinIO, FFmpeg and process recovery', () => {
         v.duration_ms,
       ]),
     ).toEqual([
-      ['DISPLAY_GIF', 2, 1, 1, 200],
-      ['POSTER_PNG', 1, 1, 1, null],
+      ['DISPLAY_GIF', 93, 165, 293, 9300],
+      ['POSTER_PNG', 1, 165, 293, null],
     ]);
     for (const v of result.variants) {
       const obj = await s3.send(
@@ -649,7 +651,7 @@ describe('B04 real PostgreSQL, MinIO, FFmpeg and process recovery', () => {
     ).toBe(1);
     await expect(processing.succeed(lease, [], '')).rejects.toThrow();
     console.log(
-      'PASS B04: pinned input, animated GIF 2 frames/200ms, PNG 1 frame, actual SHA256/HEAD, eight private axes and denials',
+      'PASS B04: pinned input, animated GIF 165x293, 93 frames/9300ms, PNG 1 frame, actual SHA256/HEAD, eight private axes and denials',
     );
   });
   it('two independent worker processes cannot claim one job or complete it with stale tokens', async () => {

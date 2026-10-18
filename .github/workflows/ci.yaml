@@ -1,4 +1,4 @@
-name: B00 through B08 checks
+name: B00 through B09 checks
 on:
   push:
   pull_request:
@@ -123,3 +123,68 @@ jobs:
           test -z "$(git ls-files --others --exclude-standard packages/db/migrations)"
       - name: B01 and B02 PostgreSQL regression tests (B03 also runs in full-stack job)
         run: pnpm test:integration --exclude packages/db/src/uploads.integration.test.ts --exclude packages/db/src/processing.integration.test.ts --exclude packages/db/src/review.integration.test.ts --exclude packages/db/src/public.integration.test.ts
+
+  b09-staging:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4.3.0
+      - uses: pnpm/action-setup@v4.1.0
+        with:
+          version: 10.34.7
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/check-test-gates.mjs
+      - run: pnpm build:packages
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Build traceable production images without publishing
+        run: |
+          pnpm staging init
+          pnpm staging validate
+          pnpm staging build
+      - name: Fresh infrastructure, explicit idempotent migration and empty platform
+        run: |
+          pnpm staging infra
+          pnpm staging migrate
+          pnpm staging migrate
+          pnpm staging empty
+      - name: Separate provisioning and explicitly authorized test bootstrap
+        run: |
+          pnpm staging provision
+          if pnpm staging bootstrap; then
+            echo 'FAIL: bootstrap accepted without authorization'
+            exit 1
+          fi
+          pnpm staging bootstrap --authorize-test-identities
+          pnpm staging bootstrap --authorize-test-identities
+          pnpm staging start
+          pnpm staging verify
+      - name: Real staging Chromium journey (no mocked routes)
+        run: pnpm staging smoke
+      - name: Quiescent database and version-preserving storage restore in disposable project
+        run: |
+          pnpm staging backup
+          pnpm staging restore-drill
+      - name: Verify required staging evidence exists
+        run: |
+          test -s work/b09-image-provenance.json
+          test -s work/b09-smoke-evidence.json
+          test -s work/b09-restore-evidence.json
+          test -s work/b09-staging-playwright.json
+      - if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: b09-staging-safe-evidence
+          path: |
+            work/b09-image-provenance.json
+            work/b09-smoke-evidence.json
+            work/b09-restore-evidence.json
+            work/b09-staging-playwright.json
+            work/b09-picker-selected.png
+          if-no-files-found: warn
+          retention-days: 14
+      - if: always()
+        run: pnpm staging down

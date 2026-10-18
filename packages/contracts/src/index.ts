@@ -75,14 +75,19 @@ export function createOpenApiDocument() {
     }),
   });
   const errors = Object.fromEntries(
-    [400, 401, 403, 404, 409, 410, 413, 415, 429, 500, 503].map((code) => [
+    [400, 401, 403, 404, 409, 410, 413, 415, 429, 503].map((code) => [
       code,
       response('Request rejected', error),
     ]),
   );
-  return {
+  const document = {
     openapi: '3.1.0',
-    info: { title: 'GIF Platform implemented API', version: '0.6.0' },
+    info: {
+      title: 'GIF Platform implemented API',
+      version: '1.0.0',
+      description:
+        'Versioned implemented slice contract. Fastify implicitly registers HEAD for each GET, with the same authorization/status/headers and no response body. Health is internal local/staging ingress. Operational commands have no HTTP endpoints.',
+    },
     components: {
       securitySchemes: {
         sessionCookie: {
@@ -433,7 +438,7 @@ export function createOpenApiDocument() {
             'Optional cookie. Invalid, expired, revoked or disabled-user sessions return authenticated:false. Responses are never cached.',
           responses: {
             200: response('Current session', sessionResponseSchema),
-            500: response('Unavailable', error),
+            503: response('Unavailable', error),
           },
         },
       },
@@ -463,12 +468,121 @@ export function createOpenApiDocument() {
             ),
             401: errors[401],
             403: errors[403],
-            500: errors[500],
+            503: errors[503],
           },
         },
       },
     },
   };
+  // Exact implemented application outcomes; generic 500 was never emitted by our handlers.
+  const outcomes: Record<string, number[]> = {
+    '/api/v1/public/gifs': [400, 429, 503],
+    '/api/v1/public/gifs/{id}': [404, 429, 503],
+    '/media/{assetId}/{variant}': [404, 429, 503],
+    '/api/v1/review/queue': [400, 401, 403, 503],
+    '/api/v1/review/assets/{assetId}': [401, 403, 404, 503],
+    '/api/v1/review/assets/{assetId}/media/{variant}': [401, 403, 404, 503],
+    '/api/v1/review/assets/{assetId}/decision': [
+      400, 401, 403, 404, 409, 413, 415, 503,
+    ],
+    '/api/v1/review/assets/{assetId}/remove': [
+      400, 401, 403, 404, 409, 413, 415, 503,
+    ],
+    '/api/v1/uploads': [400, 401, 403, 409, 413, 415, 429, 503],
+    '/api/v1/uploads/{uploadId}/complete': [
+      400, 401, 403, 404, 409, 410, 413, 415, 503,
+    ],
+    '/api/v1/me/assets': [400, 401, 503],
+    '/api/v1/me/assets/{assetId}': [401, 404, 503],
+    '/api/v1/auth/login': [400, 401, 403, 413, 415, 429, 503],
+    '/api/v1/auth/session': [503],
+    '/api/v1/auth/logout': [400, 401, 403, 413, 415, 503],
+    '/api/v1/review': [401, 403, 503],
+  };
+  type Operation = {
+    security?: object[];
+    description?: string;
+    tags?: string[];
+    responses: Record<string, object>;
+    [key: string]: unknown;
+  };
+  const paths = document.paths as unknown as Record<
+    string,
+    Record<string, Operation>
+  >;
+  for (const [path, methods] of Object.entries(paths)) {
+    for (const [method, operation] of Object.entries(methods)) {
+      if (outcomes[path]) {
+        operation.responses = Object.fromEntries(
+          Object.entries(operation.responses).filter(
+            ([status]) => Number(status) < 400,
+          ),
+        );
+        for (const status of outcomes[path]!)
+          operation.responses[status] = errors[status]!;
+      }
+      operation.security ??= [];
+      operation.tags = [
+        path.includes('/health/')
+          ? 'internal-health'
+          : path.includes('/review')
+            ? 'internal-review'
+            : path.includes('/public/') || path.startsWith('/media/')
+              ? 'public-read'
+              : 'first-party-session',
+      ];
+      operation.description =
+        (operation.description ?? '') +
+        ' X-Request-ID correlates all responses. This is the implemented first-party slice, not a supported external developer API product.';
+      for (const [status, value] of Object.entries(operation.responses)) {
+        const item = value as { headers?: Record<string, unknown> };
+        item.headers = {
+          ...item.headers,
+          'X-Request-ID': { schema: { type: 'string', format: 'uuid' } },
+          'Cache-Control': {
+            schema: { type: 'string' },
+            description:
+              Number(status) >= 400 || !path.startsWith('/media/')
+                ? 'no-store'
+                : 'public, max-age=<configured 0..30>, must-revalidate',
+          },
+        };
+        if (
+          status === '429' ||
+          (status === '503' && path.startsWith('/media/'))
+        )
+          item.headers['Retry-After'] = {
+            schema: { type: 'integer', minimum: 1 },
+            description:
+              status === '429'
+                ? 'Seconds until the applicable budget can retry'
+                : 'Present for MEDIA_BUSY only; one second',
+          };
+      }
+      if (method === 'post')
+        operation['x-write-security'] = {
+          origin:
+            'Exact configured origin; Fetch Metadata same-origin or none when present',
+          csrf: path.endsWith('/login')
+            ? 'Origin protection, no session CSRF yet'
+            : 'Session-bound X-CSRF-Token',
+          bodyLimitBytes: 16384,
+        };
+      if (path.includes('/public/'))
+        operation['x-rate-limit'] =
+          'Search and detail share explicit PUBLIC_READ_LIMIT_PER_MINUTE per socket peer, per process.';
+      if (path.startsWith('/media/'))
+        operation['x-rate-limit'] =
+          'Explicit PUBLIC_MEDIA_LIMIT_PER_MINUTE per socket peer; PUBLIC_MEDIA_MAX_CONCURRENT per process.';
+      if (path === '/api/v1/auth/login')
+        operation['x-rate-limit'] =
+          '10 per normalized account and 50 per socket peer per 900 seconds; 10000-entry bounded process-local map.';
+      if (path === '/api/v1/uploads')
+        operation['x-rate-limit'] =
+          '20 new intents per owner per 900 seconds, database serialized; exact replay does not consume quota.';
+    }
+  }
+  return document;
 }
 export * from './processing.js';
 export * from './public.js';

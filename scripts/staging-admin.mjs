@@ -77,6 +77,13 @@ try {
           )
             throw new Error('Migration mismatch');
         }
+        const permissions = (
+          await client.query(
+            "SELECT has_function_privilege('gif_staging_api','public.processing_request_review(uuid)','EXECUTE') AS api, has_function_privilege('gif_processing_worker','public.processing_request_review(uuid)','EXECUTE') AS worker",
+          )
+        ).rows[0];
+        if (permissions.api || !permissions.worker)
+          throw new Error('Processing command ACL mismatch');
         await checkUploadStorage(readApiConfig(process.env));
       }
       if (command === 'verify-pins') {

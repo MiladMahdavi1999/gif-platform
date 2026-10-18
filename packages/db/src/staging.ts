@@ -69,6 +69,7 @@ export async function provisionStagingRoles(
       GRANT UPDATE(status,attempt_count,available_at,lease_until,lease_token,last_error_code,updated_at) ON media_jobs TO gif_processing_worker;
       GRANT UPDATE(processing_state,processing_error_code,delivery_readiness_state,state_updated_at) ON asset_states TO gif_processing_worker;
       GRANT INSERT ON asset_variants,audit_events TO gif_processing_worker;
+      REVOKE ALL ON FUNCTION public.processing_request_review(uuid) FROM PUBLIC, gif_staging_api;
       GRANT EXECUTE ON FUNCTION public.processing_request_review(uuid) TO gif_processing_worker;`);
     await client.query('COMMIT');
   } catch (error) {

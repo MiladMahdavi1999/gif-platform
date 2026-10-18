@@ -51,6 +51,10 @@ afterAll(async () => {
   await admin.end();
 });
 it('does not seed identities during migration or role provisioning', async () => {
+  // pg_restore --no-acl gives new functions their default PUBLIC EXECUTE.
+  await client.query(
+    'GRANT EXECUTE ON FUNCTION public.processing_request_review(uuid) TO PUBLIC',
+  );
   await provisionStagingRoles(client, env);
   expect((await client.query('SELECT count(*) FROM users')).rows[0].count).toBe(
     '0',
@@ -125,6 +129,7 @@ it('API cannot mutate audit history, credentials, roles or schema', async () => 
     "UPDATE users SET password_hash='FORGED'",
     "INSERT INTO role_grants SELECT id,'ADMIN' FROM users",
     'CREATE TABLE forged(id integer)',
+    'SELECT public.processing_request_review(gen_random_uuid())',
   ]) {
     await client.query('BEGIN');
     try {

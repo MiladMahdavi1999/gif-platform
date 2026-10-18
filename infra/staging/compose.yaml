@@ -1,4 +1,13 @@
 # Local staging ONLY. No source mounts, seed, build-on-start, or external registry.
+x-local-network: &local-network
+  HTTP_PROXY: ''
+  HTTPS_PROXY: ''
+  ALL_PROXY: ''
+  NO_PROXY: '*'
+  http_proxy: ''
+  https_proxy: ''
+  all_proxy: ''
+  no_proxy: '*'
 x-hardening: &hardening
   init: true
   read_only: true
@@ -7,7 +16,9 @@ x-hardening: &hardening
   restart: 'no'
   stop_grace_period: 10s
   networks: [private]
+  environment: *local-network
 x-env: &env
+  <<: *local-network
   NODE_ENV: production
   APP_ENV: staging
   PUBLIC_BASE_URL: https://localhost:8443
@@ -54,6 +65,7 @@ services:
         log_statement=none,
       ]
     environment:
+      <<: *local-network
       POSTGRES_USER: gif_staging_admin
       POSTGRES_DB: gif_platform_staging
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
@@ -70,6 +82,7 @@ services:
     pull_policy: never
     command: [server, /data, --certs-dir, /certs, --console-address, ':9001']
     environment:
+      <<: *local-network
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?required}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?required}
       MINIO_API_CORS_ALLOW_ORIGIN: https://localhost:8443
@@ -111,6 +124,7 @@ services:
     pull_policy: never
     entrypoint: [/usr/local/bin/provision-worker]
     environment:
+      <<: *local-network
       APP_ENV: staging
       ALLOW_STAGING_PROVISION: ${ALLOW_STAGING_PROVISION:-false}
       S3_INTERNAL_ENDPOINT: https://minio:9000
@@ -144,6 +158,7 @@ services:
   web:
     <<: *app
     environment:
+      <<: *local-network
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: '1'
       API_INTERNAL_URL: http://api:4000

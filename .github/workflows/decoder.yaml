@@ -1,0 +1,28 @@
+name: Decoder sandbox
+on:
+  push:
+    branches: ['fix/issue-12-decoder-sandbox']
+  pull_request:
+    paths:
+      - 'apps/worker/**'
+      - 'infra/decoder/**'
+      - 'packages/testing/**'
+      - '.github/workflows/decoder.yaml'
+permissions:
+  contents: read
+jobs:
+  decoder:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    container:
+      image: node:24.19.0-bookworm-slim@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df
+    steps:
+      - uses: actions/checkout@v4.3.0
+      - run: apt-get update && apt-get install -y --no-install-recommends ffmpeg=7:5.1.9-0+deb12u1 gcc libc6-dev
+      - run: npm install --global pnpm@10.34.7
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test apps/worker/src/decoder.test.ts

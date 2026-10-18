@@ -78,6 +78,8 @@ services:
       retries: 30
   minio:
     <<: *hardening
+    # Browser POST needs the loopback published port; backend consumers stay private.
+    networks: [private, ingress]
     image: ${MINIO_IMAGE:?required}
     pull_policy: never
     command: [server, /data, --certs-dir, /certs, --console-address, ':9001']

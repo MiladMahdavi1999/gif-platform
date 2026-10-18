@@ -59,6 +59,24 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
   const ownerPage = await owner.newPage(),
     reviewPage = await moderator.newPage(),
     publicPage = await anonymous.newPage();
+  ownerPage.on('requestfailed', (request) => {
+    const origin = new URL(request.url()).origin;
+    const error = request.failure()?.errorText ?? '';
+    console.log(
+      JSON.stringify({
+        event: 'staging_browser_request_failed',
+        origin: ['https://localhost:8443', 'https://localhost:9443'].includes(
+          origin,
+        )
+          ? origin
+          : 'other-origin',
+        method: request.method(),
+        classification: /^net::ERR_[A-Z_]+$/.test(error)
+          ? error
+          : 'NETWORK_FAILURE',
+      }),
+    );
+  });
   const hostWrites: string[] = [];
   publicPage.on('request', (request) => {
     if (!['GET', 'HEAD'].includes(request.method()))
@@ -134,11 +152,13 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
       (r) =>
         new URL(r.url()).pathname === '/api/v1/uploads' &&
         r.request().method() === 'POST',
+      { timeout: 15000 },
     );
     const directPromise = ownerPage.waitForResponse(
       (r) =>
         new URL(r.url()).origin === 'https://localhost:9443' &&
         r.request().method() === 'POST',
+      { timeout: 15000 },
     );
     await ownerPage
       .getByRole('button', { name: 'Upload privately', exact: true })
@@ -435,6 +455,7 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
       (r) =>
         new URL(r.url()).pathname === '/api/v1/uploads' &&
         r.request().method() === 'POST',
+      { timeout: 15000 },
     );
     await ownerPage
       .getByRole('button', { name: 'Upload privately', exact: true })
@@ -481,6 +502,7 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
       (r) =>
         new URL(r.url()).pathname === '/api/v1/uploads' &&
         r.request().method() === 'POST',
+      { timeout: 15000 },
     );
     await ownerPage
       .getByRole('button', { name: 'Upload privately', exact: true })

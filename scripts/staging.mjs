@@ -180,6 +180,10 @@ function verify(env) {
       '--fail',
       '--silent',
       '--show-error',
+      '--connect-timeout',
+      '5',
+      '--max-time',
+      '10',
       '--cacert',
       `${env.STAGING_CERTS_DIR}/ca.crt`,
       '--output',
@@ -187,6 +191,20 @@ function verify(env) {
       `https://localhost:8443${path}`,
     ]);
   }
+  run('curl', [
+    '--fail',
+    '--silent',
+    '--show-error',
+    '--connect-timeout',
+    '5',
+    '--max-time',
+    '10',
+    '--cacert',
+    `${env.STAGING_CERTS_DIR}/ca.crt`,
+    '--output',
+    '/dev/null',
+    'https://localhost:9443/minio/health/ready',
+  ]);
   compose(env, [
     'exec',
     '-T',
@@ -196,7 +214,7 @@ function verify(env) {
     "const f=require('node:fs');process.exit(Date.now()-Number(f.readFileSync('/tmp/gif-worker-ready','utf8'))<15000?0:1)",
   ]);
   console.log(
-    'PASS: HTTPS liveness, dependency readiness, Web, Picker and restricted Worker readiness',
+    'PASS: HTTPS liveness, dependency readiness, browser S3 endpoint, Web, Picker and restricted Worker readiness',
   );
 }
 try {

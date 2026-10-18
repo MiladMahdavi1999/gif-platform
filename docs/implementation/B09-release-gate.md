@@ -2,11 +2,11 @@
 
 ## A — First Buildable Slice technical acceptance
 
-**NOT VERIFIED pending B09 execution.** The [exact SL-AC matrix](B09-acceptance.md) is the closure gate. Passing design reviews or historical B08 runs alone does not close B09. Require the same reviewed tree's formatting/lint/typecheck/production build, unit, database/storage/FFmpeg/auth/permission/security/recovery/log-hygiene, contract/schema/migration checks, Chromium suite and clean production-staging flow. Any stop-the-line failure blocks acceptance; no test may silently skip or reuse contaminated fixtures.
+**PASS — executed local technical criteria, pending human review.** Evidence: [complete run](https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39114693205), [safe staging artifact](https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39114693205/artifacts/12131203761), and the [implementation report](B09-report.md). The [exact SL-AC matrix](B09-acceptance.md) is the closure gate. Passing design reviews or historical B08 runs alone does not close B09. Require the same reviewed tree's formatting/lint/typecheck/production build, unit, database/storage/FFmpeg/auth/permission/security/recovery/log-hygiene, contract/schema/migration checks, Chromium suite and clean production-staging flow. Any stop-the-line failure blocks acceptance; no test may silently skip or reuse contaminated fixtures.
 
 ## B — Local staging readiness
 
-**NOT VERIFIED pending the clean-image smoke and restore drill.** Readiness is limited to this local, single-host, production-mode, loopback-only staging template and synthetic identities/media. Require explicit configuration, versioned images, no automatic user/content seed, controlled migration/bootstrap/start sequence, dependency readiness, the real smoke and executed recovery evidence. A successful restore drill demonstrates this fixture's paired DB/object-version snapshot, not a comprehensive disaster-recovery service or rollback guarantee for future schema versions.
+**PASS — clean production images, explicit bootstrap, real Chromium lifecycle and paired restore executed.** Readiness is limited to this local, single-host, production-mode, loopback-only staging template and synthetic identities/media. Require explicit configuration, versioned images, no automatic user/content seed, controlled migration/bootstrap/start sequence, dependency readiness, the real smoke and executed recovery evidence. A successful restore drill demonstrates this fixture's paired DB/object-version snapshot, not a comprehensive disaster-recovery service or rollback guarantee for future schema versions.
 
 ## C — Production/public-internet launch readiness
 

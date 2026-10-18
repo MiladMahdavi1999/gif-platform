@@ -20,6 +20,7 @@ Synthetic fixture generation is `packages/testing/src/index.ts`; no third-party 
 
 Safe evidence paths generated only by executed commands:
 
+- `work/b09-head-identity.json`: final branch head, tested merge checkout and run URL; no secret values.
 - `work/b09-image-provenance.json`: immutable image IDs/source/lockfile hash.
 - `work/b09-smoke-evidence.json`: outcomes, synthetic title/public asset ID, derivative SHA256, decision actor/action and audit event types. No object keys/version IDs or tokens.
 - `work/b09-staging-playwright.json`: actual count/outcome and safe step messages; no tracing/video/request-body attachments.
@@ -28,6 +29,6 @@ Safe evidence paths generated only by executed commands:
 - `work/b09-log-hygiene.json`: inspected production-staging service log count and credential/private-path/token-field absence; unchecked raw logs are never uploaded.
 - `work/b09-restore-evidence.json`: executed disposable restore checks.
 
-The `b09-staging-safe-evidence` CI artifact uploads only the explicitly named safe files. No env, CA private key, backup, raw SQL dump, MinIO archive, cookies, presigned form or complete work directory is uploaded. A passing job requires all five JSON evidence files to be present. `check-test-gates.mjs` rejects conditional/skip/only/todo tests and staging network mocks. Screenshots alone are not acceptance proof; status/result/commands must agree.
+The `b09-staging-safe-evidence` CI artifact uploads only the explicitly named safe files. No env, CA private key, backup, raw SQL dump, MinIO archive, cookies, presigned form or complete work directory is uploaded. A passing job requires the five runtime JSON evidence files to be present, then generates and retains the final head-identity JSON. Safe smoke/audit/restore/head summaries are also printed into the CI log. `check-test-gates.mjs` rejects conditional/skip/only/todo tests and staging network mocks. Screenshots alone are not acceptance proof; status/result/commands must agree.
 
 See the [report](B09-report.md) for actual run links/counts and [acceptance matrix](B09-acceptance.md) for remaining verification. A procedure that has not run is NOT VERIFIED, even if the script exists.

@@ -278,9 +278,32 @@ try {
     );
   } else {
     const env = config();
-    if (command === 'validate')
-      console.log('PASS: explicit nonproduction staging configuration');
-    else if (command === 'build') {
+    if (command === 'validate') {
+      compose(env, ['config', '--quiet']);
+      const resolved = JSON.parse(
+        compose(env, ['config', '--format', 'json'], {
+          stdio: ['ignore', 'pipe', 'pipe'],
+        }),
+      );
+      for (const [name, service] of Object.entries(resolved.services)) {
+        if (
+          service.build ||
+          service.tmpfs?.some(
+            (value) =>
+              !value.startsWith('/') || !value.includes('noexec,nosuid,nodev'),
+          )
+        )
+          throw new Error('Invalid staging filesystem isolation');
+        if (
+          ['api', 'web', 'worker', 'admin'].includes(name) &&
+          service.environment.NODE_ENV !== 'production'
+        )
+          throw new Error('Invalid staging runtime mode');
+      }
+      console.log(
+        'PASS: explicit nonproduction staging configuration and resolved production filesystem isolation',
+      );
+    } else if (command === 'build') {
       if (output('git', ['status', '--porcelain']))
         throw new Error('Commit staging sources before traceable build');
       const revision = output('git', ['rev-parse', 'HEAD']);

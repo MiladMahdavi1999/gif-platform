@@ -28,7 +28,7 @@ x-app: &app
   image: ${APP_IMAGE:?build explicit images first}
   pull_policy: never
   user: node
-  tmpfs: [/tmp:rw, noexec, nosuid, nodev, size=100m, mode=1777]
+  tmpfs: ['/tmp:rw,noexec,nosuid,nodev,size=100m,mode=1777']
   volumes:
     - ${STAGING_CERTS_DIR:?required}/ca.crt:/certs/ca.crt:ro
   environment: &api-env
@@ -81,7 +81,7 @@ services:
       - ${STAGING_CERTS_DIR}/public.crt:/certs/public.crt:ro
       - ${STAGING_CERTS_DIR}/private.key:/certs/private.key:ro
       - ${STAGING_CERTS_DIR}/ca.crt:/certs/ca.crt:ro
-    tmpfs: [/tmp:rw, noexec, nosuid, nodev, size=32m, mode=1777]
+    tmpfs: ['/tmp:rw,noexec,nosuid,nodev,size=32m,mode=1777']
     healthcheck:
       test: [CMD, /usr/local/bin/health]
       interval: 3s
@@ -124,7 +124,7 @@ services:
       S3_QUARANTINE_BUCKET: gif-staging-quarantine
       S3_DERIVATIVES_BUCKET: gif-staging-processed
     volumes: ['${STAGING_CERTS_DIR}/ca.crt:/certs/ca.crt:ro']
-    tmpfs: [/tmp:rw, noexec, nosuid, nodev, size=16m, mode=1777]
+    tmpfs: ['/tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777']
   api:
     <<: *app
     command: [node, apps/api/dist/main.js]
@@ -204,20 +204,8 @@ services:
     networks: [private, ingress]
     ports: ['127.0.0.1:8443:8443']
     tmpfs:
-      [
-        /config:rw,
-        noexec,
-        nosuid,
-        nodev,
-        size=8m,
-        mode=1777,
-        /data:rw,
-        noexec,
-        nosuid,
-        nodev,
-        size=8m,
-        mode=1777,
-      ]
+      - '/config:rw,noexec,nosuid,nodev,size=8m,mode=1777'
+      - '/data:rw,noexec,nosuid,nodev,size=8m,mode=1777'
     volumes:
       - ${STAGING_CERTS_DIR}/public.crt:/certs/public.crt:ro
       - ${STAGING_CERTS_DIR}/private.key:/certs/private.key:ro

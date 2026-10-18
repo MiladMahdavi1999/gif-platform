@@ -6,7 +6,7 @@ The single test asserts the ordered journey:
 
 1. Empty public platform and live/ready health; separate `staging empty` verifies zero users/assets before explicit bootstrap.
 2. Uploader login; real Secure/HttpOnly/SameSite cookie.
-3. Same-owner static-GIF failure yields typed `MEDIA_NOT_ANIMATED` with private input; a new valid intent gets a distinct logical ID. Rights-attested owned-pixel synthetic GIF direct presigned POST to TLS MinIO, durable private receipt, anonymous original-object GET denied.
+3. Rights-attested owned-pixel synthetic GIF direct presigned POST to TLS MinIO, durable private receipt, anonymous original-object GET denied.
 4. Worker success; pending/private/non-indexed states; public detail/media/search denied.
 5. Authorized signed-form replay creates a newer private source version while the receipt stays pinned to its original; exact upload-complete replay preserves logical ID; uploader approval is 403; no decision mutation.
 6. Distinct reviewer login; private GIF/poster bytes and browser decoding; explicit approval through the review UI; one reviewer decision and transactional approval audit.
@@ -14,6 +14,7 @@ The single test asserts the ordered journey:
 8. Actual `/demo/host-picker`, search/select; one callback and exact message **Selected; no host action performed.** No write/send/post request from the Host browser.
 9. Real Escape cancellation, focus restoration and accessible no-match search.
 10. Hold a real Picker card across authorized takedown. New public search, API detail, Web detail, display/poster origin GETs return empty/404. Stale selection reauthorization fails without callback. Approval/removal decision and audit history remain.
+11. The same owner then receives a typed `MEDIA_NOT_ANIMATED` private failure, starts a distinct new valid upload, and observes new pending/private derivatives; no automatic approval.
 
 Synthetic fixture generation is `packages/testing/src/index.ts`; no third-party media is fetched. Fresh origin checks use staging cache TTL zero; the test does not promise revocation of cached/downloaded copies.
 

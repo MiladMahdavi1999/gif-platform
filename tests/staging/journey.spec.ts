@@ -96,54 +96,6 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
     mark('empty public platform and actual liveness/readiness');
     const uploader = await login(ownerPage, 'UPLOADER');
     mark('authorized uploader authenticated with Secure HttpOnly session');
-    // SL-AC-09: the same owner can recover from a typed private failure with a NEW intent.
-    await ownerPage.goto('/studio/upload');
-    await ownerPage.getByLabel('Animated GIF (up to 20 MiB)').setInputFiles({
-      name: 'b09-owned-static.gif',
-      mimeType: 'image/gif',
-      buffer: animatedGif({ frameCount: 1 }),
-    });
-    await ownerPage
-      .getByLabel('Title', { exact: true })
-      .fill('B09 synthetic static failure');
-    await ownerPage.getByRole('checkbox').check();
-    const invalidIntentPromise = ownerPage.waitForResponse(
-      (r) =>
-        new URL(r.url()).pathname === '/api/v1/uploads' &&
-        r.request().method() === 'POST',
-    );
-    await ownerPage
-      .getByRole('button', { name: 'Upload privately', exact: true })
-      .click();
-    const invalidIntent = await (await invalidIntentPromise).json();
-    await ownerPage
-      .getByRole('link', { name: 'View durable private receipt' })
-      .click();
-    await expect(
-      ownerPage.getByText('FAILED_TERMINAL', { exact: true }),
-    ).toBeVisible({ timeout: 45000 });
-    const invalidReceipt = await (
-      await ownerPage.request.get(`/api/v1/me/assets/${invalidIntent.assetId}`)
-    ).json();
-    expect(invalidReceipt.errorCode).toBe('MEDIA_NOT_ANIMATED');
-    expect(invalidReceipt.states.visibility).toBe('PRIVATE');
-    expect(
-      (
-        await anonymous.request.get(
-          `${invalidIntent.form.url}/${invalidIntent.form.fields.key}`,
-        )
-      ).status(),
-    ).toBe(403);
-    expect(
-      (
-        await anonymous.request.get(
-          `/media/${invalidIntent.assetId}/display.gif`,
-        )
-      ).status(),
-    ).toBe(404);
-    mark(
-      'typed static-GIF failure stays private; same owner starts a new valid upload',
-    );
     await ownerPage.goto('/studio/upload');
     await ownerPage.getByLabel('Animated GIF (up to 20 MiB)').setInputFiles({
       name: 'b09-owned-pixels.gif',
@@ -171,7 +123,6 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
     const intent = await (await intentPromise).json();
     expect(uploadIntentSchema.safeParse(intent).success).toBe(true);
     assetId = intent.assetId;
-    expect(assetId !== invalidIntent.assetId).toBe(true);
     expect((await directPromise).status()).toBe(204);
     await expect(ownerPage.getByRole('main').getByRole('status')).toContainText(
       'Received privately.',
@@ -448,6 +399,91 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
     ).toBe(true);
     mark(
       'takedown denies fresh origin/detail/search and stale Picker selection; approval/removal audit retained',
+    );
+    // SL-AC-09: the same owner can recover from a typed private failure with a NEW intent.
+    await ownerPage.goto('/studio/upload');
+    await ownerPage.getByLabel('Animated GIF (up to 20 MiB)').setInputFiles({
+      name: 'b09-owned-static.gif',
+      mimeType: 'image/gif',
+      buffer: animatedGif({ frameCount: 1 }),
+    });
+    await ownerPage
+      .getByLabel('Title', { exact: true })
+      .fill('B09 synthetic static failure');
+    await ownerPage.getByRole('checkbox').check();
+    const invalidIntentPromise = ownerPage.waitForResponse(
+      (r) =>
+        new URL(r.url()).pathname === '/api/v1/uploads' &&
+        r.request().method() === 'POST',
+    );
+    await ownerPage
+      .getByRole('button', { name: 'Upload privately', exact: true })
+      .click();
+    const invalidIntent = await (await invalidIntentPromise).json();
+    await ownerPage
+      .getByRole('link', { name: 'View durable private receipt' })
+      .click();
+    await expect(
+      ownerPage.getByText('FAILED_TERMINAL', { exact: true }),
+    ).toBeVisible({ timeout: 45000 });
+    const invalidReceipt = await (
+      await ownerPage.request.get(`/api/v1/me/assets/${invalidIntent.assetId}`)
+    ).json();
+    expect(invalidReceipt.errorCode).toBe('MEDIA_NOT_ANIMATED');
+    expect(invalidReceipt.states.visibility).toBe('PRIVATE');
+    expect(
+      (
+        await anonymous.request.get(
+          `${invalidIntent.form.url}/${invalidIntent.form.fields.key}`,
+        )
+      ).status(),
+    ).toBe(403);
+    expect(
+      (
+        await anonymous.request.get(
+          `/media/${invalidIntent.assetId}/display.gif`,
+        )
+      ).status(),
+    ).toBe(404);
+    mark(
+      'typed static-GIF failure stays private; same owner starts a new valid upload',
+    );
+    await ownerPage.goto('/studio/upload');
+    await ownerPage.getByLabel('Animated GIF (up to 20 MiB)').setInputFiles({
+      name: 'b09-owned-new-upload.gif',
+      mimeType: 'image/gif',
+      buffer: animatedGif(),
+    });
+    await ownerPage
+      .getByLabel('Title', { exact: true })
+      .fill('B09 valid private retry');
+    await ownerPage.getByRole('checkbox').check();
+    const newIntentPromise = ownerPage.waitForResponse(
+      (r) =>
+        new URL(r.url()).pathname === '/api/v1/uploads' &&
+        r.request().method() === 'POST',
+    );
+    await ownerPage
+      .getByRole('button', { name: 'Upload privately', exact: true })
+      .click();
+    const newIntent = await (await newIntentPromise).json();
+    expect(
+      newIntent.assetId !== invalidIntent.assetId &&
+        newIntent.assetId !== assetId,
+    ).toBe(true);
+    await ownerPage
+      .getByRole('link', { name: 'View durable private receipt' })
+      .click();
+    await expect(ownerPage.getByText('SUCCEEDED', { exact: true })).toBeVisible(
+      { timeout: 45000 },
+    );
+    expect(
+      (
+        await anonymous.request.get(`/media/${newIntent.assetId}/display.gif`)
+      ).status(),
+    ).toBe(404);
+    mark(
+      'same owner completed a distinct valid new upload after typed failure; new derivatives remain pending/private',
     );
     writeFileSync(
       'work/b09-smoke-evidence.json',

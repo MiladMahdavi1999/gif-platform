@@ -6,7 +6,7 @@ The single test asserts the ordered journey:
 
 1. Empty public platform and live/ready health; separate `staging empty` verifies zero users/assets before explicit bootstrap.
 2. Uploader login; real Secure/HttpOnly/SameSite cookie.
-3. Rights-attested owned-pixel synthetic GIF direct presigned POST to TLS MinIO, durable private receipt, anonymous original-object GET denied.
+3. Same-owner static-GIF failure yields typed `MEDIA_NOT_ANIMATED` with private input; a new valid intent gets a distinct logical ID. Rights-attested owned-pixel synthetic GIF direct presigned POST to TLS MinIO, durable private receipt, anonymous original-object GET denied.
 4. Worker success; pending/private/non-indexed states; public detail/media/search denied.
 5. Exact upload-complete replay preserves logical ID; uploader approval is 403; no decision mutation.
 6. Distinct reviewer login; private GIF/poster bytes and browser decoding; explicit approval through the review UI; one reviewer decision and transactional approval audit.

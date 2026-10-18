@@ -135,14 +135,20 @@ export async function provisionPrivateStorage(config: StorageConfig) {
 export async function checkUploadStorage(config: StorageConfig) {
   const client = s3Client(config);
   try {
-    await client.send(
-      new HeadBucketCommand({ Bucket: config.S3_QUARANTINE_BUCKET }),
+    const abortSignal = AbortSignal.timeout(3000);
+    await Promise.all(
+      [config.S3_QUARANTINE_BUCKET, config.S3_DERIVATIVES_BUCKET].map(
+        async (Bucket) => {
+          await client.send(new HeadBucketCommand({ Bucket }), { abortSignal });
+          const versioning = await client.send(
+            new GetBucketVersioningCommand({ Bucket }),
+            { abortSignal },
+          );
+          if (versioning.Status !== 'Enabled')
+            throw new Error('Private bucket versioning is required');
+        },
+      ),
     );
-    const versioning = await client.send(
-      new GetBucketVersioningCommand({ Bucket: config.S3_QUARANTINE_BUCKET }),
-    );
-    if (versioning.Status !== 'Enabled')
-      throw new Error('Quarantine versioning is required');
   } finally {
     client.destroy();
   }

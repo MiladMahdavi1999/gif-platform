@@ -1,4 +1,4 @@
-import pg from 'pg';
+import { createResilientPool } from './pool.js';
 import type {
   PublicQuery,
   PublicDetail,
@@ -50,14 +50,13 @@ export function createPublicRepository(
   connectionString: string,
   cursorSecret: string,
 ) {
-  const pool = new pg.Pool({
+  const pool = createResilientPool({
     connectionString,
     max: 5,
     connectionTimeoutMillis: 1500,
     query_timeout: 5500,
     statement_timeout: 5000,
   });
-  pool.on('error', () => {});
   const cursors = createPublicCursor(cursorSecret);
   const repository = {
     async list(input: PublicQuery) {

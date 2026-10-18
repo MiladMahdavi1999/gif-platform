@@ -4,6 +4,7 @@ import { installAuth, type AuthOptions } from './auth.js';
 import type { Readiness } from '@gif/contracts';
 import { installUploads, type UploadOptions } from './uploads.js';
 import { installReview, type ReviewOptions } from './review.js';
+import { randomUUID } from 'node:crypto';
 
 export interface HealthDependencies {
   database: () => Promise<void>;
@@ -19,6 +20,7 @@ export function createApp(
   publicOptions?: PublicOptions,
 ) {
   const app = Fastify({
+    genReqId: () => randomUUID(),
     logger: logging
       ? {
           level: 'info',
@@ -40,6 +42,26 @@ export function createApp(
     if (!reply.hasHeader('Cache-Control'))
       reply.header('Cache-Control', 'no-store');
   });
+  // An allowlisted record: never serialize requests, URLs, bodies or raw errors.
+  app.addHook('onResponse', async (request, reply) => {
+    request.log.info({
+      event: 'request_completed',
+      requestId: request.id,
+      route: request.routeOptions.url ?? 'unmatched',
+      statusCode: reply.statusCode,
+      classification:
+        reply.statusCode >= 500
+          ? 'service_unavailable'
+          : reply.statusCode >= 400
+            ? 'request_rejected'
+            : 'completed',
+    });
+  });
+  app.setNotFoundHandler((request, reply) =>
+    reply.code(404).send({
+      error: { code: 'NOT_FOUND', message: 'Not found', requestId: request.id },
+    }),
+  );
 
   app.get('/api/v1/health/live', async () => ({ status: 'ok' }));
   app.get('/api/v1/health/ready', async (_request, reply) => {
@@ -76,10 +98,12 @@ export function createApp(
   app.setErrorHandler((error, request, reply) => {
     const status = (error as { statusCode?: number }).statusCode;
     const invalid = status === 400 || status === 413 || status === 415;
-    reply.code(invalid ? status : 500).send({
+    reply.code(invalid ? status : 503).send({
       error: {
-        code: invalid ? 'INVALID_REQUEST' : 'INTERNAL_ERROR',
-        message: invalid ? 'Invalid request' : 'Request failed',
+        code: invalid ? 'INVALID_REQUEST' : 'SERVICE_UNAVAILABLE',
+        message: invalid
+          ? 'Invalid request'
+          : 'Service unavailable. Please retry.',
         requestId: request.id,
       },
     });

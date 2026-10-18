@@ -9,6 +9,7 @@ import {
   createProcessingRepository,
   createReviewRepository,
   createPublicRepository,
+  createOperationsRepository,
 } from '@gif/db';
 import {
   createProcessingStorage,
@@ -18,6 +19,8 @@ import {
   provisionPrivateStorage,
   s3Client,
   type StorageConfig,
+  detectOrphans,
+  checkUploadStorage,
 } from '@gif/storage';
 import { readWorkerConfig } from '@gif/config';
 import { processJob } from '../../../apps/worker/src/process-job.js';
@@ -29,6 +32,7 @@ import { createPickerSession } from '../../../apps/web/app/picker/picker-session
 import { PickerReadError } from '../../../apps/web/app/picker/public-read.js';
 import {
   PutObjectCommand,
+  PutBucketVersioningCommand,
   DeleteObjectCommand,
   ListObjectVersionsCommand,
   DeleteObjectsCommand,
@@ -326,6 +330,99 @@ async function hidden(id: string) {
   ).toBe(false);
 }
 describe('B06 real PostgreSQL/MinIO/FFmpeg public discovery and origin', () => {
+  it('B08 authenticated health probes reject suspended derivative versioning and recover truthfully', async () => {
+    const health = createApp({
+      database: async () => {
+        await pool.query('SELECT 1');
+      },
+      storage: () => checkUploadStorage(config),
+    });
+    try {
+      expect((await health.inject('/api/v1/health/ready')).statusCode).toBe(
+        200,
+      );
+      await s3.send(
+        new PutBucketVersioningCommand({
+          Bucket: config.S3_DERIVATIVES_BUCKET,
+          VersioningConfiguration: { Status: 'Suspended' },
+        }),
+      );
+      expect((await health.inject('/api/v1/health/ready')).statusCode).toBe(
+        503,
+      );
+      expect((await health.inject('/api/v1/health/live')).statusCode).toBe(200);
+    } finally {
+      await s3.send(
+        new PutBucketVersioningCommand({
+          Bucket: config.S3_DERIVATIVES_BUCKET,
+          VersioningConfiguration: { Status: 'Enabled' },
+        }),
+      );
+      expect((await health.inject('/api/v1/health/ready')).statusCode).toBe(
+        200,
+      );
+      await health.close();
+    }
+  });
+  it('B08 orphan detection is per asset, read-only, bounded and protects every pinned generation during concurrent activity', async () => {
+    const id = await fixture();
+    await approve(id);
+    const ops = createOperationsRepository(target.href);
+    try {
+      const references = await ops.references(id);
+      expect(references.protectScope).toBe(true);
+      const report = await detectOrphans(config, id, references);
+      expect(report.deletionPermitted).toBe(false);
+      expect(report.objects.length).toBeGreaterThanOrEqual(3);
+      expect(
+        report.objects.every((v) => v.classification === 'PROTECTED'),
+      ).toBe(true);
+      expect(JSON.stringify(report)).not.toMatch(
+        /assets\/|quarantine\/|objectKey|objectVersionId|X-Amz/,
+      );
+      const unknown = randomUUID();
+      const key = `assets/${unknown}/v1/uncommitted.gif`;
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: config.S3_DERIVATIVES_BUCKET,
+          Key: key,
+          Body: animatedGif(),
+        }),
+      );
+      const candidate = await detectOrphans(
+        config,
+        unknown,
+        await ops.references(unknown),
+      );
+      expect(candidate.objects).toHaveLength(1);
+      expect(candidate.objects[0]?.classification).toBe('MANUAL_REVIEW_ONLY');
+      expect(candidate.deletionPermitted).toBe(false);
+      expect(candidate.truncated).toBe(false);
+      expect(candidate.objects[0]?.reference).toMatch(/^[a-f0-9]{64}$/);
+      await Promise.all(
+        Array.from({ length: 100 }, (_, i) =>
+          s3.send(
+            new PutObjectCommand({
+              Bucket: config.S3_DERIVATIVES_BUCKET,
+              Key: `assets/${unknown}/uncommitted-${i}`,
+              Body: Buffer.from('owned fixture'),
+            }),
+          ),
+        ),
+      );
+      const bounded = await detectOrphans(
+        config,
+        unknown,
+        await ops.references(unknown),
+      );
+      expect(bounded.truncated).toBe(true);
+      expect(bounded.objects).toHaveLength(100);
+      expect((await media(id)).statusCode).toBe(200);
+      await expect(detectOrphans(config, '../', references)).rejects.toThrow();
+    } finally {
+      await ops.close();
+    }
+  });
   it('B07 selection rechecks authoritative detail after listing and denies newly ineligible and removed GIFs', async () => {
     const id = await fixture();
     await approve(id);

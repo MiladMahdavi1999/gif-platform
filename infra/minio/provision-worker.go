@@ -39,6 +39,7 @@ func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	policy := map[string]any{"Version": "2012-10-17", "Statement": []map[string]any{
+		{"Effect": "Allow", "Action": []string{"s3:GetBucketVersioning"}, "Resource": []string{"arn:aws:s3:::" + quarantine, "arn:aws:s3:::" + derivatives}},
 		{"Effect": "Allow", "Action": []string{"s3:GetObject", "s3:GetObjectVersion"}, "Resource": []string{"arn:aws:s3:::" + quarantine + "/quarantine/*"}},
 		{"Effect": "Allow", "Action": []string{"s3:PutObject", "s3:GetObject", "s3:GetObjectVersion"}, "Resource": []string{"arn:aws:s3:::" + derivatives + "/assets/*"}},
 	}}

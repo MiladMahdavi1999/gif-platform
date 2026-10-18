@@ -1,4 +1,4 @@
-name: B00 through B07 checks
+name: B00 through B08 checks
 on:
   push:
   pull_request:
@@ -18,6 +18,7 @@ jobs:
           node-version: 24.19.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: node scripts/check-test-gates.mjs
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
@@ -26,6 +27,10 @@ jobs:
       - run: pnpm api:check
       - run: pnpm build
       - run: cp .env.example .env
+      - name: Initialize strictly disposable fresh fixtures
+        run: |
+          docker compose --env-file .env -f infra/compose.yaml down --volumes --remove-orphans
+          docker compose -f infra/compose.db-test.yaml down --volumes --remove-orphans
       - run: pnpm dev
       - name: Retain pinned MinIO runtime for reproducible local verification
         run: docker save gif-platform-minio:2025-10-15 | gzip > work-minio-runtime.tar.gz
@@ -45,7 +50,7 @@ jobs:
       - run: pnpm db:inspect:dev
       - run: pnpm test:smoke
       - run: docker compose -f infra/compose.db-test.yaml up -d --wait
-      - name: All B01 through B07 real PostgreSQL MinIO processing moderation and Picker integration tests
+      - name: All B01 through B08 real PostgreSQL MinIO FFmpeg recovery and security integration tests
         run: pnpm test:integration
         env:
           TEST_DATABASE_URL: postgresql://gif_platform:local_only_integration_password@127.0.0.1:55432/gif_platform_test
@@ -66,6 +71,7 @@ jobs:
       - run: node scripts/test-upload-log-hygiene.mjs
       - run: node scripts/test-review-log-hygiene.mjs
       - run: node scripts/test-public-log-hygiene.mjs
+      - run: node scripts/test-operations.mjs
       - run: node scripts/test-dependency-failures.mjs
       - run: node scripts/test-local-lifecycle.mjs --confirm=gif_platform
       - run: pnpm db:migrate
@@ -74,11 +80,13 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: b07-browser-evidence
+          name: b08-browser-runtime-evidence
           path: test-results/
           if-no-files-found: ignore
       - if: always()
-        run: docker compose --env-file .env -f infra/compose.yaml down
+        run: |
+          docker compose --env-file .env -f infra/compose.yaml down --volumes --remove-orphans
+          docker compose -f infra/compose.db-test.yaml down --volumes --remove-orphans
 
   b01-database:
     runs-on: ubuntu-24.04

@@ -23,7 +23,41 @@ async function waitReady() {
   }
   throw new Error('Readiness did not recover');
 }
+function workerProbe(file) {
+  return (
+    execFileSync(
+      'docker',
+      [
+        'compose',
+        '--env-file',
+        '.env',
+        '-f',
+        'infra/compose.yaml',
+        'exec',
+        '-T',
+        'worker',
+        'node',
+        '-e',
+        "const fs=require('node:fs');try{process.stdout.write(Date.now()-Number(fs.readFileSync(process.argv[1],'utf8'))<15000?'ready':'not_ready')}catch{process.stdout.write('not_ready')}",
+        file,
+      ],
+      { encoding: 'utf8' },
+    ) === 'ready'
+  );
+}
+async function waitWorkerReady(expected) {
+  for (let attempt = 0; attempt < 40; attempt++) {
+    if (workerProbe('/tmp/gif-worker-ready') === expected) return;
+    await setTimeout(500);
+  }
+  throw new Error(
+    expected
+      ? 'Worker dependency readiness did not recover'
+      : 'Worker dependency readiness incorrectly stayed healthy',
+  );
+}
 await waitReady();
+await waitWorkerReady(true);
 mkdirSync('test-results', { recursive: true });
 const browser = await chromium.launch(
   process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
@@ -51,6 +85,28 @@ try {
       const other = check === 'database' ? 'storage' : 'database';
       assert.equal(body.checks[other], 'up');
       assert.equal((await fetch(`${base}/api/v1/health/live`)).status, 200);
+      const publicRead = await fetch(`${base}/api/v1/public/gifs`);
+      assert.equal(publicRead.status, service === 'db' ? 503 : 200);
+      if (service === 'db') {
+        const failure = await publicRead.json();
+        assert.equal(
+          failure.error.message,
+          'Public service unavailable. Please retry.',
+        );
+        assert.equal(
+          publicRead.headers.get('x-request-id'),
+          failure.error.requestId,
+        );
+        await page.getByRole('button', { name: 'Search', exact: true }).click();
+        await expect(
+          page
+            .getByRole('region', { name: 'Discover GIFs', exact: true })
+            .getByRole('alert'),
+        ).toContainText('could not be loaded');
+      }
+      // Worker readiness must track dependencies; its process heartbeat is liveness only.
+      await waitWorkerReady(false);
+      assert.equal(workerProbe('/tmp/gif-worker-heartbeat'), true);
       await expect(page.getByRole('status')).toHaveText(
         'Dependencies unavailable',
         { timeout: 15000 },
@@ -62,12 +118,14 @@ try {
     } finally {
       compose('start', service);
       await waitReady();
+      await waitWorkerReady(true);
     }
     await expect(page.getByRole('status')).toHaveText(
       'Dependencies ready — PostgreSQL and object store reachable',
       { timeout: 15000 },
     );
     console.log(`PASS: ${service} restored -> readiness 200, browser ready`);
+    assert.equal((await fetch(`${base}/api/v1/public/gifs`)).status, 200);
   }
   const detailPage = await browser.newPage();
   try {

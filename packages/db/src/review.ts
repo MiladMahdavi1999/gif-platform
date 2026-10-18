@@ -1,4 +1,5 @@
-import pg, { type PoolClient } from 'pg';
+import { createResilientPool } from './pool.js';
+import type { PoolClient } from 'pg';
 import {
   decisionRequestSchema,
   removalRequestSchema,
@@ -83,13 +84,14 @@ export function assertReviewVariants(id: string, values: ReviewVariant[]) {
     throw conflict();
 }
 export function createReviewRepository(connectionString: string) {
-  const pool = new pg.Pool({
+  const pool = createResilientPool({
     connectionString,
     max: 5,
     connectionTimeoutMillis: 1500,
     query_timeout: 12000,
+    statement_timeout: 11000,
+    idle_in_transaction_session_timeout: 15000,
   });
-  pool.on('error', () => {});
   const repository = {
     async queue(limit: number, cursor?: string) {
       if (

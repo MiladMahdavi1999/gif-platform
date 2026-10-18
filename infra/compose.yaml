@@ -15,6 +15,19 @@ x-app: &app
 services:
   db:
     image: postgres:17.6-bookworm
+    # Constraint DETAIL/STATEMENT can contain private values even when API logs are safe.
+    command:
+      [
+        postgres,
+        -c,
+        log_error_verbosity=terse,
+        -c,
+        log_min_error_statement=panic,
+        -c,
+        log_parameter_max_length_on_error=0,
+        -c,
+        log_statement=none,
+      ]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?Copy .env.example to .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set local database password}
@@ -78,6 +91,9 @@ services:
       PORT: '4000'
       PUBLIC_CURSOR_SECRET: ${PUBLIC_CURSOR_SECRET:?Set cursor signing secret}
       PUBLIC_MEDIA_CACHE_SECONDS: ${PUBLIC_MEDIA_CACHE_SECONDS:-30}
+      PUBLIC_READ_LIMIT_PER_MINUTE: ${PUBLIC_READ_LIMIT_PER_MINUTE:-300}
+      PUBLIC_MEDIA_LIMIT_PER_MINUTE: ${PUBLIC_MEDIA_LIMIT_PER_MINUTE:-600}
+      PUBLIC_MEDIA_MAX_CONCURRENT: ${PUBLIC_MEDIA_MAX_CONCURRENT:-5}
       SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-gif_session}
       SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-86400}
       CSRF_ORIGIN: ${PUBLIC_BASE_URL:?Set public base URL}
@@ -197,6 +213,8 @@ services:
     depends_on:
       db: { condition: service_healthy }
       storage-worker-init: { condition: service_completed_successfully }
+    # Startup liveness only: restricted DB role is provisioned by the subsequent seed.
+    # Dependency readiness is /tmp/gif-worker-ready; see the B08 operations runbook.
     healthcheck:
       test:
         [

@@ -1,9 +1,9 @@
-import pg from 'pg';
+import { createResilientPool } from './pool.js';
 
 export * as schema from './schema.js';
 export { drizzle } from 'drizzle-orm/node-postgres';
 export function createDatabaseProbe(connectionString: string) {
-  const pool = new pg.Pool({
+  const pool = createResilientPool({
     connectionString,
     max: 2,
     connectionTimeoutMillis: 1500,
@@ -11,7 +11,6 @@ export function createDatabaseProbe(connectionString: string) {
     idleTimeoutMillis: 1000,
   });
   // A dependency restart can close idle clients. Do not crash or log connection details.
-  pool.on('error', () => {});
   return {
     async check(): Promise<void> {
       const client = await pool.connect();
@@ -34,3 +33,4 @@ export * from './processing.js';
 export * from './worker-access.js';
 export * from './review.js';
 export * from './public.js';
+export * from './operations.js';

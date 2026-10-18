@@ -8,10 +8,16 @@ import {
   bootstrapStagingIdentities,
   provisionStagingRoles,
 } from '../packages/db/dist/staging.js';
+import {
+  HeadObjectCommand,
+  GetObjectCommand,
+  ListObjectVersionsCommand,
+} from '@aws-sdk/client-s3';
 import { readApiConfig } from '../packages/config/dist/index.js';
 import {
   checkUploadStorage,
   provisionPrivateStorage,
+  s3Client,
 } from '../packages/storage/dist/index.js';
 
 try {
@@ -25,6 +31,7 @@ try {
       'verify',
       'inventory',
       'inventory-empty',
+      'verify-pins',
     ].includes(command)
   )
     throw new Error('Unknown staging command');
@@ -71,6 +78,100 @@ try {
             throw new Error('Migration mismatch');
         }
         await checkUploadStorage(readApiConfig(process.env));
+      }
+      if (command === 'verify-pins') {
+        const config = readApiConfig(process.env),
+          storage = s3Client(config);
+        try {
+          const sources = (
+            await client.query(
+              'SELECT quarantine_key AS key,received_version_id AS version,received_etag AS etag,received_size_bytes AS size FROM upload_sessions WHERE completed_at IS NOT NULL',
+            )
+          ).rows;
+          const derivatives = (
+            await client.query(
+              'SELECT object_key AS key,object_version_id AS version,sha256,size_bytes AS size FROM asset_variants',
+            )
+          ).rows;
+          if (sources.length > 100 || derivatives.length > 100)
+            throw new Error('Disposable verification bound exceeded');
+          for (const source of sources) {
+            const head = await storage.send(
+              new HeadObjectCommand({
+                Bucket: config.S3_QUARANTINE_BUCKET,
+                Key: source.key,
+                VersionId: source.version,
+              }),
+            );
+            if (
+              head.VersionId !== source.version ||
+              head.ETag !== source.etag ||
+              head.ContentLength !== Number(source.size)
+            )
+              throw new Error('Source version mismatch');
+          }
+          for (const derivative of derivatives) {
+            const media = await storage.send(
+              new GetObjectCommand({
+                Bucket: config.S3_DERIVATIVES_BUCKET,
+                Key: derivative.key,
+                VersionId: derivative.version,
+              }),
+            );
+            const bytes = await media.Body.transformToByteArray();
+            if (
+              media.VersionId !== derivative.version ||
+              bytes.length !== Number(derivative.size) ||
+              createHash('sha256').update(bytes).digest('hex') !==
+                derivative.sha256
+            )
+              throw new Error('Derivative version mismatch');
+          }
+          const inventory = [];
+          for (const Bucket of [
+            config.S3_QUARANTINE_BUCKET,
+            config.S3_DERIVATIVES_BUCKET,
+          ]) {
+            const versions = await storage.send(
+              new ListObjectVersionsCommand({ Bucket, MaxKeys: 100 }),
+            );
+            if (versions.IsTruncated)
+              throw new Error('Disposable inventory bound exceeded');
+            for (const value of versions.Versions ?? [])
+              inventory.push([
+                Bucket,
+                value.Key,
+                value.VersionId,
+                value.IsLatest,
+                value.ETag,
+                value.Size,
+              ]);
+            for (const value of versions.DeleteMarkers ?? [])
+              inventory.push([
+                Bucket,
+                value.Key,
+                value.VersionId,
+                value.IsLatest,
+                'delete-marker',
+              ]);
+          }
+          inventory.sort((a, b) =>
+            JSON.stringify(a).localeCompare(JSON.stringify(b)),
+          );
+          console.log(
+            JSON.stringify({
+              event: 'staging_version_inventory',
+              sourcePins: sources.length,
+              derivativePins: derivatives.length,
+              objectVersions: inventory.length,
+              inventorySha256: createHash('sha256')
+                .update(JSON.stringify(inventory))
+                .digest('hex'),
+            }),
+          );
+        } finally {
+          storage.destroy();
+        }
       }
       if (command === 'inventory' || command === 'inventory-empty') {
         const counts = {};

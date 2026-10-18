@@ -109,6 +109,32 @@ function admin(env, operation) {
   ]);
 }
 const appServices = ['edge', 'web', 'api', 'worker'];
+function versionInventory(env) {
+  const lines = compose(
+    env,
+    [
+      'run',
+      '--rm',
+      '--no-deps',
+      'admin',
+      'node',
+      'scripts/staging-admin.mjs',
+      'verify-pins',
+    ],
+    { stdio: ['ignore', 'pipe', 'inherit'] },
+  ).split('\n');
+  const value = lines
+    .map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    })
+    .find((value) => value?.event === 'staging_version_inventory');
+  if (!value) throw new Error('Missing version inventory evidence');
+  return value;
+}
 function stop(env) {
   compose(env, ['stop', ...appServices]);
 }
@@ -440,6 +466,7 @@ try {
         throw new Error('Refusing to overwrite backup');
       mkdirSync(directory, { recursive: true, mode: 0o700 });
       stop(env);
+      const versionEvidence = versionInventory(env);
       compose(env, ['stop', 'minio']);
       // All application/storage writers are stopped: no writes between these snapshots.
       const fd = openSync(`${directory}/postgres.dump`, 'wx', 0o600);
@@ -497,6 +524,7 @@ try {
             sourceProject: env.STAGING_PROJECT,
             revision: env.APP_IMAGE.split(':')[1],
             files,
+            versionEvidence,
           },
           null,
           2,
@@ -587,6 +615,12 @@ try {
         'storage-iam',
       ]);
       admin(restored, 'migrate'); // Must be a no-op against the restored checksum ledger.
+      const restoredVersions = versionInventory(restored);
+      if (
+        JSON.stringify(restoredVersions) !==
+        JSON.stringify(manifest.versionEvidence)
+      )
+        throw new Error('Restored version inventory mismatch');
       start(restored);
       await verify(restored);
       run(process.execPath, ['scripts/staging-recovery-check.mjs'], {
@@ -604,6 +638,8 @@ try {
             project: restored.STAGING_PROJECT,
             checks: [
               'backup-sha256',
+              'all-source-and-derivative-pins',
+              'complete-version-and-delete-marker-inventory-fingerprint',
               'postgres-single-transaction',
               'full-versioned-minio-volume',
               'migration-idempotence',

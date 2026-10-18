@@ -98,13 +98,11 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
     mark('authorized uploader authenticated with Secure HttpOnly session');
     // SL-AC-09: the same owner can recover from a typed private failure with a NEW intent.
     await ownerPage.goto('/studio/upload');
-    await ownerPage
-      .getByLabel('Animated GIF (up to 20 MiB)')
-      .setInputFiles({
-        name: 'b09-owned-static.gif',
-        mimeType: 'image/gif',
-        buffer: animatedGif({ frameCount: 1 }),
-      });
+    await ownerPage.getByLabel('Animated GIF (up to 20 MiB)').setInputFiles({
+      name: 'b09-owned-static.gif',
+      mimeType: 'image/gif',
+      buffer: animatedGif({ frameCount: 1 }),
+    });
     await ownerPage
       .getByLabel('Title', { exact: true })
       .fill('B09 synthetic static failure');
@@ -206,6 +204,28 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
       indexing: 'NOT_INDEXED',
     });
     await denied(anonymous.request);
+    const overwriteStatus = await ownerPage.evaluate(
+      async ({ url, fields, bytes }) => {
+        const body = new FormData();
+        for (const [key, value] of Object.entries(fields))
+          body.append(key, value as string);
+        body.append(
+          'file',
+          new Blob([new Uint8Array(bytes)], { type: 'image/gif' }),
+          'b09-newer-owned-version.gif',
+        );
+        return (await fetch(url, { method: 'POST', body })).status;
+      },
+      {
+        url: intent.form.url as string,
+        fields: intent.form.fields as Record<string, string>,
+        bytes: Array.from(animatedGif({ frameCount: 3 })),
+      },
+    );
+    expect(overwriteStatus).toBe(204);
+    mark(
+      'signed-form replay creates a newer private source version without changing the pinned receipt or derivatives',
+    );
     const replay = await ownerPage.request.post(
       `/api/v1/uploads/${intent.uploadId}/complete`,
       {

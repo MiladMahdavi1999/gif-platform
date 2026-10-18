@@ -8,7 +8,7 @@ The single test asserts the ordered journey:
 2. Uploader login; real Secure/HttpOnly/SameSite cookie.
 3. Same-owner static-GIF failure yields typed `MEDIA_NOT_ANIMATED` with private input; a new valid intent gets a distinct logical ID. Rights-attested owned-pixel synthetic GIF direct presigned POST to TLS MinIO, durable private receipt, anonymous original-object GET denied.
 4. Worker success; pending/private/non-indexed states; public detail/media/search denied.
-5. Exact upload-complete replay preserves logical ID; uploader approval is 403; no decision mutation.
+5. Authorized signed-form replay creates a newer private source version while the receipt stays pinned to its original; exact upload-complete replay preserves logical ID; uploader approval is 403; no decision mutation.
 6. Distinct reviewer login; private GIF/poster bytes and browser decoding; explicit approval through the review UI; one reviewer decision and transactional approval audit.
 7. All public eligibility axes; actual search and rendered detail; both sanitized media aliases work; original remains private; safe response schemas validate and credentials/private pins do not appear in DTOs.
 8. Actual `/demo/host-picker`, search/select; one callback and exact message **Selected; no host action performed.** No write/send/post request from the Host browser.

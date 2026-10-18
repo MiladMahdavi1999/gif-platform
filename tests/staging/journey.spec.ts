@@ -397,14 +397,32 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
         exact: true,
       }),
     ).toBeVisible();
-    await publicPage.keyboard.press('Escape');
+    // A focused nonempty native search input can consume Escape by clearing it.
+    // Escape was verified above; explicitly exercise Cancel after the empty search.
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(open).toBeFocused();
     mark(
-      'real Picker Escape cancellation, restored focus and accessible empty search',
+      'real Picker Escape/Cancel, restored focus and accessible empty search',
     );
-    // Hold an actual result card open across removal; select must reauthorize.
+    // Hold a committed real result across removal; no pending query may replace it.
     await open.click();
+    const committedSearch = publicPage.waitForResponse(
+      (response) => {
+        const url = new URL(response.url());
+        return (
+          url.pathname === '/api/v1/public/gifs' &&
+          url.searchParams.get('q') === title
+        );
+      },
+      { timeout: 15000 },
+    );
     await dialog.getByLabel('Search GIFs', { exact: true }).fill(title);
-    await publicPage.keyboard.press('Enter');
+    await dialog.getByRole('button', { name: 'Search', exact: true }).click();
+    expect((await committedSearch).status()).toBe(200);
+    await expect(
+      dialog.getByText('1 GIFs shown', { exact: true }),
+    ).toBeVisible();
     const select = dialog.getByRole('button', {
       name: `Select ${title}`,
       exact: true,
@@ -425,7 +443,9 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
       .locator('output[aria-label="Terminal callbacks received"]')
       .textContent();
     await select.click();
-    await expect(dialog.getByRole('alert')).toContainText('Nothing selected');
+    await expect(dialog.getByRole('alert')).toContainText(
+      'unavailable or restricted',
+    );
     await expect(
       publicPage.locator('output[aria-label="Terminal callbacks received"]'),
     ).toHaveText(callbacks!);
@@ -559,6 +579,10 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
       ) + '\n',
     );
   } finally {
-    await Promise.all([owner.close(), moderator.close(), anonymous.close()]);
+    await Promise.allSettled([
+      owner.close(),
+      moderator.close(),
+      anonymous.close(),
+    ]);
   }
 });

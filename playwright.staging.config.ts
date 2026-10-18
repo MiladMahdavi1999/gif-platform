@@ -11,6 +11,8 @@ export default defineConfig({
   ],
   use: {
     baseURL: 'https://localhost:8443',
+    actionTimeout: 15000,
+    navigationTimeout: 20000,
     // Disposable self-signed local CA only; deployed services still enforce TLS.
     ignoreHTTPSErrors: true,
     trace: 'off',

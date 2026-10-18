@@ -417,6 +417,12 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
         exact: true,
       }),
     ).toBeVisible();
+    await expect(
+      publicPage.locator('output[aria-label="Terminal callbacks received"]'),
+    ).toHaveText('4');
+    await expect(
+      publicPage.getByRole('region', { name: 'Selected GIF reference' }),
+    ).toHaveCount(0);
     mark(
       'nonempty native search input Escape cancels exactly once and restores Host focus',
     );

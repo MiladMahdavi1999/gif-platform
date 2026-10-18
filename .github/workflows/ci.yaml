@@ -163,7 +163,9 @@ jobs:
           pnpm staging start
           pnpm staging verify
       - name: Real staging Chromium journey (no mocked routes)
-        run: pnpm staging smoke
+        run: |
+          pnpm staging smoke
+          pnpm staging logs-check
       - name: Quiescent database and version-preserving storage restore in disposable project
         run: |
           pnpm staging backup
@@ -174,6 +176,7 @@ jobs:
           test -s work/b09-smoke-evidence.json
           test -s work/b09-restore-evidence.json
           test -s work/b09-staging-playwright.json
+          test -s work/b09-log-hygiene.json
       - if: always()
         uses: actions/upload-artifact@v4.6.2
         with:
@@ -184,6 +187,7 @@ jobs:
             work/b09-restore-evidence.json
             work/b09-staging-playwright.json
             work/b09-picker-selected.png
+            work/b09-log-hygiene.json
           if-no-files-found: warn
           retention-days: 14
       - if: always()

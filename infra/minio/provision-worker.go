@@ -55,21 +55,33 @@ func run() error {
 	if err = client.AddUser(ctx, user, secret); err != nil {
 		return err
 	}
-	if err = client.SetPolicy(ctx, name, user, false); err != nil { return err }
-	if !staging { return nil }
+	if err = client.SetPolicy(ctx, name, user, false); err != nil {
+		return err
+	}
+	if !staging {
+		return nil
+	}
 	apiUser := os.Getenv("S3_API_ACCESS_KEY_ID")
 	apiSecret := os.Getenv("S3_API_SECRET_ACCESS_KEY")
-	if !regexp.MustCompile(`^[A-Za-z0-9_-]{8,64}$`).MatchString(apiUser) || len(apiSecret) < 32 || apiUser == user || apiUser == os.Getenv("MINIO_ROOT_USER") { return fmt.Errorf("separate API identity required") }
+	if !regexp.MustCompile(`^[A-Za-z0-9_-]{8,64}$`).MatchString(apiUser) || len(apiSecret) < 32 || apiUser == user || apiUser == os.Getenv("MINIO_ROOT_USER") {
+		return fmt.Errorf("separate API identity required")
+	}
 	apiPolicy := map[string]any{"Version": "2012-10-17", "Statement": []map[string]any{
 		{"Effect": "Allow", "Action": []string{"s3:ListBucket", "s3:GetBucketVersioning"}, "Resource": []string{"arn:aws:s3:::" + quarantine, "arn:aws:s3:::" + derivatives}},
 		{"Effect": "Allow", "Action": []string{"s3:PutObject", "s3:GetObject", "s3:GetObjectVersion"}, "Resource": []string{"arn:aws:s3:::" + quarantine + "/quarantine/*"}},
 		{"Effect": "Allow", "Action": []string{"s3:GetObject", "s3:GetObjectVersion"}, "Resource": []string{"arn:aws:s3:::" + derivatives + "/assets/*"}},
 	}}
 	apiData, err := json.Marshal(apiPolicy)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	apiName := "gif-api-" + apiUser
-	if err = client.AddCannedPolicy(ctx, apiName, apiData); err != nil { return err }
-	if err = client.AddUser(ctx, apiUser, apiSecret); err != nil { return err }
+	if err = client.AddCannedPolicy(ctx, apiName, apiData); err != nil {
+		return err
+	}
+	if err = client.AddUser(ctx, apiUser, apiSecret); err != nil {
+		return err
+	}
 	return client.SetPolicy(ctx, apiName, apiUser, false)
 }
 func main() {

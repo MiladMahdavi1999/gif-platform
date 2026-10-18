@@ -310,6 +310,13 @@ try {
           '.',
         ]);
       }
+      if (
+        output('git', ['status', '--porcelain']) ||
+        output('git', ['rev-parse', 'HEAD']) !== revision
+      )
+        throw new Error(
+          'Commit changed during build; discard candidate images',
+        );
       const images = Object.fromEntries(
         ['APP_IMAGE', 'WORKER_IMAGE', 'MINIO_IMAGE', 'EDGE_IMAGE'].map(
           (key) => {

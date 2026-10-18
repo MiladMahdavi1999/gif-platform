@@ -8,6 +8,7 @@ import {
   existsSync,
   openSync,
   closeSync,
+  chmodSync,
 } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseEnv } from 'node:util';
@@ -268,6 +269,9 @@ try {
       ],
       { stdio: 'ignore' },
     );
+    // Host directory stays 0700. The server-key file must be readable by fixed
+    // service UID 1000 even when the Docker operator has a different host UID.
+    chmodSync(`${directory}/private.key`, 0o644);
     const secret = () => randomBytes(32).toString('hex');
     const revision = output('git', ['rev-parse', 'HEAD']);
     const env = {
@@ -489,26 +493,35 @@ try {
       } finally {
         closeSync(fd);
       }
-      run('docker', [
-        'run',
-        '--rm',
-        '--network',
-        'none',
-        '--read-only',
-        '--cap-drop=ALL',
-        '--security-opt=no-new-privileges',
-        '--mount',
-        `type=volume,src=${env.STAGING_PROJECT}_minio_data,dst=/snapshot,readonly`,
-        '--mount',
-        `type=bind,src=${directory},dst=/backup`,
-        env.APP_IMAGE,
-        'tar',
-        '-cf',
-        '/backup/minio-volume.tar',
-        '-C',
-        '/snapshot',
-        '.',
-      ]);
+      const objectFd = openSync(`${directory}/minio-volume.tar`, 'wx', 0o600);
+      try {
+        run(
+          'docker',
+          [
+            'run',
+            '--rm',
+            '--network',
+            'none',
+            '--read-only',
+            '--user',
+            '1000:1000',
+            '--cap-drop=ALL',
+            '--security-opt=no-new-privileges',
+            '--mount',
+            `type=volume,src=${env.STAGING_PROJECT}_minio_data,dst=/snapshot,readonly`,
+            env.APP_IMAGE,
+            'tar',
+            '-cf',
+            '-',
+            '-C',
+            '/snapshot',
+            '.',
+          ],
+          { stdio: ['ignore', objectFd, 'pipe'] },
+        );
+      } finally {
+        closeSync(objectFd);
+      }
       const files = Object.fromEntries(
         ['postgres.dump', 'minio-volume.tar'].map((name) => [
           name,
@@ -555,25 +568,35 @@ try {
       };
       // New random project only: restore cannot target the source deployment.
       compose(restored, ['create', 'db', 'minio']);
-      run('docker', [
-        'run',
-        '--rm',
-        '--network',
-        'none',
-        '--read-only',
-        '--cap-drop=ALL',
-        '--security-opt=no-new-privileges',
-        '--mount',
-        `type=volume,src=${restored.STAGING_PROJECT}_minio_data,dst=/snapshot`,
-        '--mount',
-        `type=bind,src=${directory},dst=/backup,readonly`,
-        env.APP_IMAGE,
-        'tar',
-        '-xf',
-        '/backup/minio-volume.tar',
-        '-C',
-        '/snapshot',
-      ]);
+      const objectFd = openSync(`${directory}/minio-volume.tar`, 'r');
+      try {
+        run(
+          'docker',
+          [
+            'run',
+            '--rm',
+            '--interactive',
+            '--network',
+            'none',
+            '--read-only',
+            '--user',
+            '1000:1000',
+            '--cap-drop=ALL',
+            '--security-opt=no-new-privileges',
+            '--mount',
+            `type=volume,src=${restored.STAGING_PROJECT}_minio_data,dst=/snapshot`,
+            env.APP_IMAGE,
+            'tar',
+            '-xf',
+            '-',
+            '-C',
+            '/snapshot',
+          ],
+          { stdio: [objectFd, 'inherit', 'pipe'] },
+        );
+      } finally {
+        closeSync(objectFd);
+      }
       compose(restored, [
         'up',
         '-d',

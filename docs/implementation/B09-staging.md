@@ -33,7 +33,7 @@ pnpm staging smoke
 - `gif-platform-staging-app:<40-character-source-SHA>`: compiled API, Next production build and one-shot tools.
 - `gif-platform-staging-worker:<SHA>`: same compiled packages plus pinned FFmpeg and decoder sandbox.
 - `gif-platform-staging-minio:<SHA>`: security release source commit already selected in B00, with TLS-aware health and guarded IAM provisioning.
-- `gif-platform-staging-edge:<SHA>`: pinned Caddy with the staging configuration baked into the image.
+- `gif-platform-staging-edge:<SHA>`: pinned Caddy with the staging configuration baked into the image. Its inherited low-port file capability is removed at build time; high port 8443 works with all capabilities dropped and no-new-privileges.
 
 No `latest`, registry push, live source mounts, hot reload or built-in credentials. Node, Go, Caddy and staging PostgreSQL base references are digest-pinned; pnpm/Node/FFmpeg versions and the lockfile are fixed. `work/b09-image-provenance.json` records exact built image IDs, source SHA and lockfile SHA256. Labels bind each image to its source revision. Archive the reviewed local images with `docker save` and record SHA256 if moving between hosts; verify IDs before deployment. A tag alone can be overwritten by an operator; the retained image ID is authoritative. The workflow is reproducible from committed source and pins; it does not claim bit-identical layers across builders/timestamps or permanently available Debian/package repositories. Preserve tested images, rather than rebuilding them during rollback. Runtime images currently retain build dependencies/source for the shared monorepo; image-size minimization and SBOM/vulnerability approval remain production follow-up.
 

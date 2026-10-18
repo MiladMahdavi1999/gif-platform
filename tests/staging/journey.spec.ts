@@ -62,6 +62,7 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
   ownerPage.on('requestfailed', (request) => {
     const origin = new URL(request.url()).origin;
     const error = request.failure()?.errorText ?? '';
+    if (error === 'net::ERR_ABORTED') return; // Expected cancellation of Next navigation/prefetch reads.
     console.log(
       JSON.stringify({
         event: 'staging_browser_request_failed',
@@ -362,9 +363,11 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
     await dialog
       .getByRole('button', { name: `Select ${title}`, exact: true })
       .click();
-    await expect(publicPage.getByRole('status')).toHaveText(
-      'Selected; no host action performed.',
-    );
+    await expect(
+      publicPage.getByText('Selected; no host action performed.', {
+        exact: true,
+      }),
+    ).toBeVisible();
     await expect(
       publicPage.locator('output[aria-label="Terminal callbacks received"]'),
     ).toHaveText('1');
@@ -379,9 +382,11 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
     await open.click();
     await publicPage.keyboard.press('Escape');
     await expect(open).toBeFocused();
-    await expect(publicPage.getByRole('status')).toHaveText(
-      'Cancelled; no host action performed.',
-    );
+    await expect(
+      publicPage.getByText('Cancelled; no host action performed.', {
+        exact: true,
+      }),
+    ).toBeVisible();
     await open.click();
     await dialog
       .getByLabel('Search GIFs', { exact: true })

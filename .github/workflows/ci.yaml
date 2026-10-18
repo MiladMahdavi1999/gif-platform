@@ -187,7 +187,8 @@ jobs:
           const proof=JSON.parse(readFileSync('work/b09-image-provenance.json','utf8'));
           const head=process.env.B09_PR_HEAD_SHA;
           if(!/^[a-f0-9]{40}$/.test(head??'')) throw new Error('Missing final branch identity');
-          writeFileSync('work/b09-head-identity.json',JSON.stringify({branchHead:head,checkoutRevision:proof.revision,runUrl:`${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`},null,2)+'\n');
+          writeFileSync('work/b09-head-identity.json',JSON.stringify({branchHead:head,checkoutRevision:proof.revision,runUrl:`${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`},null,2)+String.fromCharCode(10));
+          JSON.parse(readFileSync('work/b09-head-identity.json','utf8'));
           JS
           cat work/b09-smoke-evidence.json work/b09-restore-evidence.json work/b09-log-hygiene.json work/b09-head-identity.json
       - if: always()

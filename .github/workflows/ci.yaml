@@ -170,6 +170,9 @@ jobs:
         run: |
           pnpm staging backup
           pnpm staging restore-drill
+      - name: Safe service diagnostics on failure
+        if: failure()
+        run: pnpm staging logs-check
       - name: Verify required staging evidence exists
         run: |
           test -s work/b09-image-provenance.json
@@ -188,6 +191,7 @@ jobs:
             work/b09-staging-playwright.json
             work/b09-picker-selected.png
             work/b09-log-hygiene.json
+            work/b09-service-safe.log
           if-no-files-found: warn
           retention-days: 14
       - if: always()

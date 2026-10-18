@@ -311,6 +311,15 @@ try {
         env[`${name}_IMAGE`] =
           `gif-platform-staging-${name.toLowerCase()}:${revision}`;
       saveEnv(env);
+      const databaseReference = JSON.parse(
+        compose(env, ['config', '--format', 'json'], {
+          stdio: ['ignore', 'pipe', 'pipe'],
+        }),
+      ).services.db.image;
+      run('docker', ['pull', databaseReference]);
+      const databaseInfo = JSON.parse(
+        output('docker', ['image', 'inspect', databaseReference]),
+      )[0];
       const secret = process.env.CODEX_PROXY_CERT
         ? ['--secret', `id=proxy_ca,src=${process.env.CODEX_PROXY_CERT}`]
         : [];
@@ -362,13 +371,26 @@ try {
               .update(readFileSync('pnpm-lock.yaml'))
               .digest('hex'),
             images,
+            database: {
+              reference: databaseReference,
+              id: databaseInfo.Id,
+              repoDigests: databaseInfo.RepoDigests,
+            },
           },
           null,
           2,
         ) + '\n',
       );
       console.log(
-        'PASS: four local image identities recorded; nothing published',
+        JSON.stringify({
+          event: 'staging_images',
+          revision,
+          images,
+          database: { reference: databaseReference, id: databaseInfo.Id },
+        }),
+      );
+      console.log(
+        'PASS: four local image identities and pinned PostgreSQL recorded; nothing published',
       );
     } else if (command === 'infra') {
       verifyImages(env);

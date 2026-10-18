@@ -19,7 +19,7 @@ func run() error {
 		return fmt.Errorf("development provisioning disabled")
 	}
 	endpoint, err := url.Parse(os.Getenv("S3_INTERNAL_ENDPOINT"))
-	if err != nil || (endpoint.Scheme != "http" && !(staging && endpoint.Scheme == "https")) || endpoint.User != nil || endpoint.RawQuery != "" || (endpoint.Path != "" && endpoint.Path != "/") || (endpoint.Hostname() != "minio" && endpoint.Hostname() != "localhost" && endpoint.Hostname() != "127.0.0.1") {
+	if err != nil || ((staging && endpoint.Scheme != "https") || (!staging && endpoint.Scheme != "http")) || endpoint.User != nil || endpoint.RawQuery != "" || (endpoint.Path != "" && endpoint.Path != "/") || (endpoint.Hostname() != "minio" && endpoint.Hostname() != "localhost" && endpoint.Hostname() != "127.0.0.1") {
 		return fmt.Errorf("local endpoint required")
 	}
 	user := os.Getenv("S3_WORKER_ACCESS_KEY_ID")

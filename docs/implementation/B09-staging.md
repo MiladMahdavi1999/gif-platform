@@ -28,7 +28,7 @@ pnpm staging smoke
 
 `init` refuses to replace existing configuration/CA; creates a mode-600 env file, distinct random nonproduction credentials and a seven-day private CA/server certificate for localhost/minio. It starts nothing and creates no users. `validate` refuses an exposed env file, missing/invalid secrets, conflicting identities, foreign targets, non-SHA image tags or missing certificate files. `STAGING_ENV_FILE` may select another private env file; the default is `work/staging.env`. Keep generated paths on the Docker host. The CA private key remains outside containers. Only public CA certificates and the server TLS key/certificate are mounted; no source directory is mounted. Docker operators can access environment secrets: this is not an external secrets-manager design.
 
-`build` requires a clean Git tree and builds four **local-only** images:
+`build` requires a clean Git tree, explicitly pulls the digest-pinned PostgreSQL runtime, and builds four **local-only** images:
 
 - `gif-platform-staging-app:<40-character-source-SHA>`: compiled API, Next production build and one-shot tools.
 - `gif-platform-staging-worker:<SHA>`: same compiled packages plus pinned FFmpeg and decoder sandbox.

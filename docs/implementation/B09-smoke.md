@@ -23,7 +23,8 @@ Safe evidence paths generated only by executed commands:
 - `work/b09-smoke-evidence.json`: outcomes, synthetic title/public asset ID, derivative SHA256, decision actor/action and audit event types. No object keys/version IDs or tokens.
 - `work/b09-staging-playwright.json`: actual count/outcome and safe step messages; no tracing/video/request-body attachments.
 - `work/b09-picker-selected.png`: public synthetic selection receipt.
-- `work/b09-log-hygiene.json`: inspected production-staging service log count and credential/private-path/token-field absence; no raw logs are uploaded.
+- `work/b09-service-safe.log`: actual service logs, shared only after credential/path/token-field checks pass.
+- `work/b09-log-hygiene.json`: inspected production-staging service log count and credential/private-path/token-field absence; unchecked raw logs are never uploaded.
 - `work/b09-restore-evidence.json`: executed disposable restore checks.
 
 The `b09-staging-safe-evidence` CI artifact uploads only the explicitly named safe files. No env, CA private key, backup, raw SQL dump, MinIO archive, cookies, presigned form or complete work directory is uploaded. A passing job requires all five JSON evidence files to be present. `check-test-gates.mjs` rejects conditional/skip/only/todo tests and staging network mocks. Screenshots alone are not acceptance proof; status/result/commands must agree.

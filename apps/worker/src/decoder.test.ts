@@ -119,6 +119,12 @@ describe('real sandboxed GIF decoding', () => {
       Buffer.from('GIF89a malformed;'),
     ])
       await expect(render(value)).rejects.toHaveProperty('code');
+    const largeCorrupt = animatedGif({ width: 165, height: 293 });
+    largeCorrupt[56] = 0; // Invalid LZW minimum code size, past the valid header.
+    await expect(render(largeCorrupt)).rejects.toMatchObject({
+      code: 'MEDIA_DECODE_FAILED',
+      stage: 'source_probe',
+    });
     const corrupt = Buffer.from(animated);
     corrupt[60] = 255;
     await expect(render(corrupt)).rejects.toHaveProperty('code');

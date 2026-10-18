@@ -55,3 +55,10 @@ docker run --rm --network none --read-only --cap-drop ALL \
 The regression suite covers the larger valid animation, existing malformed/truncated/still/wrong bytes, dimensions/pixels/frames/duration/input/output/time budgets, OS file/network/process denial, hard memory/CPU/fd/core budgets, and marker/exit/stderr fail-closed behavior. The processing integration success case now uses this larger GIF and verifies real object versions/checksums, `SUCCEEDED`, `PENDING` moderation, private visibility, no search/public delivery, and atomic completion.
 
 `.github/workflows/decoder.yaml` runs the decoder suite on native `ubuntu-24.04` and `ubuntu-24.04-arm` runners in the pinned Trixie/FFmpeg container. The local host is x86_64; native ARM64 validation uses that CI job rather than emulation.
+
+## Recorded validation
+
+- `pnpm test`: 110/110 tests passed locally; `pnpm typecheck`, `pnpm lint`, Prettier and regression-gate checks passed.
+- FFmpeg 5.1.9: exact Node pipe probe fails with and without the sandbox. FFmpeg 7.1.5: full pipeline succeeds under the sandbox.
+- Actual worker image build passed. The production decoder and reproduction helper passed with `--network none --read-only --cap-drop ALL --security-opt no-new-privileges --memory 1536m --cpus 1 --pids-limit 64` and the 100 MiB temporary filesystem. DISPLAY_GIF is 51,312 bytes, POSTER_PNG is 1,172 bytes; metadata matches all 93 source frames.
+- [Native ARM64 and x86_64 decoder CI](https://github.com/MiladMahdavi1999/gif-platform/actions/runs/39161643597): both jobs passed all 12 tests on commit `d275cfb` (including sandbox OS denial/resource probes).

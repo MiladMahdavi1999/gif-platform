@@ -1,11 +1,11 @@
 name: Decoder sandbox
 on:
-  push:
-    branches: ['fix/issue-12-decoder-sandbox']
   pull_request:
     paths:
       - 'apps/worker/**'
       - 'infra/decoder/**'
+      - 'infra/docker/Dockerfile'
+      - 'scripts/reproduce-decoder.mjs'
       - 'packages/testing/**'
       - '.github/workflows/decoder.yaml'
 permissions:

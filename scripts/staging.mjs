@@ -464,6 +464,45 @@ try {
         ],
         { env: { ...process.env, ...env, STAGING_ENV_FILE: envPath } },
       );
+    } else if (command === 'logs-check') {
+      const logs = compose(env, ['logs', '--no-color'], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      const forbidden = Object.entries(env)
+        .filter(([key]) => /PASSWORD|SECRET|DATABASE_URL/.test(key))
+        .map(([, value]) => value);
+      if (!logs.trim())
+        throw new Error(
+          'Staging log privacy check requires actual service logs',
+        );
+      if (
+        forbidden.some((value) => value && logs.includes(value)) ||
+        /(?:quarantine|assets)\/[a-f0-9-]{36}\/|X-Amz-Signature|password_hash|csrfToken|token_hash/.test(
+          logs,
+        )
+      )
+        throw new Error('Staging log privacy check failed');
+      writeFileSync('work/b09-service-safe.log', logs + '\n');
+      writeFileSync(
+        'work/b09-log-hygiene.json',
+        JSON.stringify(
+          {
+            status: 'passed',
+            lines: logs.split('\n').length,
+            checks: [
+              'configured-secrets-and-connection-strings-absent',
+              'no-private-object-paths',
+              'no-session-or-signature-fields',
+            ],
+          },
+          null,
+          2,
+        ) + '\n',
+      );
+      console.log(logs);
+      console.log(
+        'PASS: actual staging service logs exclude configured credentials, connection strings, private object paths and token/signature fields',
+      );
     } else if (command === 'backup') {
       const directory = resolve(process.argv[3] ?? 'work/staging-backup');
       if (existsSync(directory))

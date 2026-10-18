@@ -459,7 +459,25 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
       reviewPage.getByText('Decision saved: REMOVED.', { exact: true }),
     ).toBeVisible();
     await denied(anonymous.request);
-    expect((await anonymous.request.get(`/g/${assetId}`)).status()).toBe(404);
+    const deniedWeb = await anonymous.newPage();
+    await deniedWeb.goto(`/g/${assetId}`);
+    await expect(
+      deniedWeb.getByRole('heading', { name: 'GIF unavailable', exact: true }),
+    ).toBeVisible();
+    await expect(
+      deniedWeb.getByRole('heading', { name: title, exact: true }),
+    ).toHaveCount(0);
+    await expect(deniedWeb.locator('img,video')).toHaveCount(0);
+    expect(
+      await deniedWeb
+        .locator('meta[name="robots"]')
+        .evaluateAll((elements) =>
+          elements.some((element) =>
+            element.getAttribute('content')?.includes('noindex'),
+          ),
+        ),
+    ).toBe(true);
+    await deniedWeb.close();
     const callbacks = await publicPage
       .locator('output[aria-label="Terminal callbacks received"]')
       .textContent();

@@ -13,7 +13,7 @@ The single test asserts the ordered journey:
 7. All public eligibility axes; actual search and rendered detail; both sanitized media aliases work; original remains private; safe response schemas validate and credentials/private pins do not appear in DTOs.
 8. Actual `/demo/host-picker`, search/select; one callback and exact message **Selected; no host action performed.** No write/send/post request from the Host browser.
 9. Real Escape/Cancel, including Escape from a nonempty native search field, focus restoration and accessible no-match search.
-10. Hold a real Picker card across authorized takedown. New public search, API detail, Web detail, display/poster origin GETs return empty/404. Stale selection reauthorization fails without callback. Approval/removal decision and audit history remain.
+10. Hold a real Picker card across authorized takedown. New public search is empty and API detail/display/poster origin GETs return 404. A fresh Web page renders “GIF unavailable” with no former title/media and `noindex`; Next.js can stream that denied shell with HTTP 200. Stale selection reauthorization fails without callback. Approval/removal decision and audit history remain.
 11. The same owner then receives a typed `MEDIA_NOT_ANIMATED` private failure, starts a distinct new valid upload, and observes new pending/private derivatives; no automatic approval.
 
 Synthetic fixture generation is `packages/testing/src/index.ts`; no third-party media is fetched. Fresh origin checks use staging cache TTL zero; the test does not promise revocation of cached/downloaded copies.

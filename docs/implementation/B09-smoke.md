@@ -12,7 +12,7 @@ The single test asserts the ordered journey:
 6. Distinct reviewer login; private GIF/poster bytes and browser decoding; explicit approval through the review UI; one reviewer decision and transactional approval audit.
 7. All public eligibility axes; actual search and rendered detail; both sanitized media aliases work; original remains private; safe response schemas validate and credentials/private pins do not appear in DTOs.
 8. Actual `/demo/host-picker`, search/select; one callback and exact message **Selected; no host action performed.** No write/send/post request from the Host browser.
-9. Real Escape cancellation, focus restoration and accessible no-match search.
+9. Real Escape/Cancel, including Escape from a nonempty native search field, focus restoration and accessible no-match search.
 10. Hold a real Picker card across authorized takedown. New public search, API detail, Web detail, display/poster origin GETs return empty/404. Stale selection reauthorization fails without callback. Approval/removal decision and audit history remain.
 11. The same owner then receives a typed `MEDIA_NOT_ANIMATED` private failure, starts a distinct new valid upload, and observes new pending/private derivatives; no automatic approval.
 

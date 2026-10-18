@@ -405,6 +405,21 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
     mark(
       'real Picker Escape/Cancel, restored focus and accessible empty search',
     );
+    await open.click();
+    await dialog
+      .getByLabel('Search GIFs', { exact: true })
+      .fill('nonempty-query-escape');
+    await publicPage.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(open).toBeFocused();
+    await expect(
+      publicPage.getByText('Cancelled; no host action performed.', {
+        exact: true,
+      }),
+    ).toBeVisible();
+    mark(
+      'nonempty native search input Escape cancels exactly once and restores Host focus',
+    );
     // Hold a committed real result across removal; no pending query may replace it.
     await open.click();
     const committedSearch = publicPage.waitForResponse(

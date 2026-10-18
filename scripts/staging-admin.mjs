@@ -82,6 +82,13 @@ try {
             "SELECT has_function_privilege('gif_staging_api','public.processing_request_review(uuid)','EXECUTE') AS api, has_function_privilege('gif_processing_worker','public.processing_request_review(uuid)','EXECUTE') AS worker",
           )
         ).rows[0];
+        const guards = (
+          await client.query(
+            "SELECT count(*)::int AS count FROM pg_trigger WHERE tgname IN ('staging_users_lock_only','staging_grants_lock_only') AND tgenabled='O' AND tgfoid='public.staging_guard_identity_updates()'::regprocedure",
+          )
+        ).rows[0];
+        if (guards.count !== 2)
+          throw new Error('Identity mutation guards required');
         if (permissions.api || !permissions.worker)
           throw new Error('Processing command ACL mismatch');
         await checkUploadStorage(readApiConfig(process.env));

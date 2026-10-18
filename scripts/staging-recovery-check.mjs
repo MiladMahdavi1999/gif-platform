@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-const original = JSON.parse(
-  readFileSync('work/b09-smoke-evidence.json', 'utf8'),
-);
 const origin = 'https://localhost:8443';
 try {
+  const original = JSON.parse(
+    readFileSync('work/b09-smoke-evidence.json', 'utf8'),
+  );
   const login = await fetch(`${origin}/api/v1/auth/login`, {
     method: 'POST',
     headers: { Origin: origin, 'Content-Type': 'application/json' },

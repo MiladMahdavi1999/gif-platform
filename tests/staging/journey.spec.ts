@@ -15,6 +15,29 @@ import {
   uploadIntentSchema,
 } from '@gif/contracts';
 
+async function privateStatus(request: APIRequestContext, url: string) {
+  try {
+    return (await request.get(url)).status();
+  } catch {
+    throw new Error('Private storage denial probe unavailable');
+  }
+}
+async function authenticatedPost(
+  request: APIRequestContext,
+  path: string,
+  csrf: string,
+  data: object,
+) {
+  try {
+    return await request.post(path, {
+      headers: { Origin: 'https://localhost:8443', 'X-CSRF-Token': csrf },
+      data,
+    });
+  } catch {
+    throw new Error('Authenticated staging request unavailable');
+  }
+}
+
 // No request routing/mocking, seed API, direct SQL, worker substitute.
 test('clean production staging: real private upload, FFmpeg, distinct review, public Picker and takedown', async ({
   browser,
@@ -136,7 +159,7 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
     expect(ownerAssetSchema.safeParse(receipt).success).toBe(true);
     expect(receipt.states.visibility).toBe('PRIVATE');
     const rawUrl = `${intent.form.url}/${intent.form.fields.key}`;
-    expect((await anonymous.request.get(rawUrl)).status()).toBe(403);
+    expect(await privateStatus(anonymous.request, rawUrl)).toBe(403);
     await denied(anonymous.request);
     mark(
       'real browser signed TLS POST, private durable receipt, quarantine GET denied',
@@ -155,52 +178,49 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
       indexing: 'NOT_INDEXED',
     });
     await denied(anonymous.request);
-    const overwriteStatus = await ownerPage.evaluate(
-      async ({ url, fields, bytes }) => {
-        const body = new FormData();
-        for (const [key, value] of Object.entries(fields))
-          body.append(key, value as string);
-        body.append(
-          'file',
-          new Blob([new Uint8Array(bytes)], { type: 'image/gif' }),
-          'b09-newer-owned-version.gif',
-        );
-        return (await fetch(url, { method: 'POST', body })).status;
-      },
-      {
-        url: intent.form.url as string,
-        fields: intent.form.fields as Record<string, string>,
-        bytes: Array.from(animatedGif({ frameCount: 3 })),
-      },
-    );
+    let overwriteStatus: number;
+    try {
+      overwriteStatus = await ownerPage.evaluate(
+        async ({ url, fields, bytes }) => {
+          const body = new FormData();
+          for (const [key, value] of Object.entries(fields))
+            body.append(key, value as string);
+          body.append(
+            'file',
+            new Blob([new Uint8Array(bytes)], { type: 'image/gif' }),
+            'b09-newer-owned-version.gif',
+          );
+          return (await fetch(url, { method: 'POST', body })).status;
+        },
+        {
+          url: intent.form.url as string,
+          fields: intent.form.fields as Record<string, string>,
+          bytes: Array.from(animatedGif({ frameCount: 3 })),
+        },
+      );
+    } catch {
+      throw new Error('Controlled private version replay unavailable');
+    }
     expect(overwriteStatus).toBe(204);
     mark(
       'signed-form replay creates a newer private source version without changing the pinned receipt or derivatives',
     );
-    const replay = await ownerPage.request.post(
+    const replay = await authenticatedPost(
+      ownerPage.request,
       `/api/v1/uploads/${intent.uploadId}/complete`,
-      {
-        headers: {
-          Origin: 'https://localhost:8443',
-          'X-CSRF-Token': uploader.csrfToken,
-        },
-        data: {},
-      },
+      uploader.csrfToken,
+      {},
     );
     expect(replay.status()).toBe(202);
     expect((await replay.json()).assetId === assetId).toBe(true);
-    const forbidden = await ownerPage.request.post(
+    const forbidden = await authenticatedPost(
+      ownerPage.request,
       `/api/v1/review/assets/${assetId}/decision`,
+      uploader.csrfToken,
       {
-        headers: {
-          Origin: 'https://localhost:8443',
-          'X-CSRF-Token': uploader.csrfToken,
-        },
-        data: {
-          decision: 'APPROVE',
-          reasonCode: 'POLICY_PASSED',
-          expectedVersion: processed.rowVersion,
-        },
+        decision: 'APPROVE',
+        reasonCode: 'POLICY_PASSED',
+        expectedVersion: processed.rowVersion,
       },
     );
     expect(forbidden.status()).toBe(403);
@@ -306,7 +326,7 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
       expect(
         (await anonymous.request.get(`/media/${assetId}/${variant}`)).status(),
       ).toBe(200);
-    expect((await anonymous.request.get(rawUrl)).status()).toBe(403);
+    expect(await privateStatus(anonymous.request, rawUrl)).toBe(403);
     mark(
       'eligible public search, actual Web detail and sanitized aliases; no private identifiers in DTOs',
     );
@@ -432,11 +452,10 @@ test('clean production staging: real private upload, FFmpeg, distinct review, pu
     expect(invalidReceipt.errorCode).toBe('MEDIA_NOT_ANIMATED');
     expect(invalidReceipt.states.visibility).toBe('PRIVATE');
     expect(
-      (
-        await anonymous.request.get(
-          `${invalidIntent.form.url}/${invalidIntent.form.fields.key}`,
-        )
-      ).status(),
+      await privateStatus(
+        anonymous.request,
+        `${invalidIntent.form.url}/${invalidIntent.form.fields.key}`,
+      ),
     ).toBe(403);
     expect(
       (

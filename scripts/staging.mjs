@@ -698,6 +698,7 @@ try {
           {
             status: 'passed',
             project: restored.STAGING_PROJECT,
+            versionEvidence: restoredVersions,
             checks: [
               'backup-sha256',
               'all-source-and-derivative-pins',

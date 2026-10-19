@@ -9,7 +9,7 @@ import {
   type ProcessingRepository,
 } from '@gif/db';
 import type { ProcessingStorage } from '@gif/storage';
-import { renderGif } from './decoder.js';
+import { DecoderFault, renderGif } from './decoder.js';
 export async function processJob(
   lease: MediaLease,
   repository: ProcessingRepository,
@@ -110,6 +110,18 @@ export async function processJob(
                     : 'FFMPEG_RESOURCE_TRANSIENT',
                 true,
               );
+    if (error instanceof DecoderFault)
+      console.log(
+        JSON.stringify({
+          service: 'worker',
+          status: 'decoder_failed',
+          stage: error.stage,
+          code: error.code,
+          jobId: lease.id,
+          assetId: lease.assetId,
+          attempt: lease.attempt,
+        }),
+      );
     try {
       await repository.fail(lease, failure.code, failure.retryable);
     } catch {

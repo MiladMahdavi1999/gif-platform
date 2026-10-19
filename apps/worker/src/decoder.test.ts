@@ -29,6 +29,23 @@ async function render(bytes: Buffer, patch: Partial<typeof config> = {}) {
   }
 }
 describe('real sandboxed GIF decoding', () => {
+  it('processes a 165x293, 93-frame GIF larger than the pipe seek-back buffer', async () => {
+    const bytes = animatedGif({ width: 165, height: 293, frameCount: 93 });
+    expect(bytes.length).toBeGreaterThan(32768);
+    const result = await render(bytes);
+    expect(
+      result.map((v) => [
+        v.name,
+        v.width,
+        v.height,
+        v.frameCount,
+        v.durationMs,
+      ]),
+    ).toEqual([
+      ['DISPLAY_GIF', 165, 293, 93, 9300],
+      ['POSTER_PNG', 165, 293, 1, null],
+    ]);
+  });
   it('re-encodes animated GIF and real static PNG with actual metadata and SHA-256', async () => {
     const result = await render(animatedGif());
     expect(
@@ -49,6 +66,44 @@ describe('real sandboxed GIF decoding', () => {
     );
     expect(result.every((v) => /^[a-f0-9]{64}$/.test(v.sha256))).toBe(true);
   });
+  it('reports controlled stages while preserving safe codes and resource failures', async () => {
+    for (const [bytes, patch, code, stage] of [
+      [
+        Buffer.from('private-path-and-content'),
+        {},
+        'MEDIA_INVALID',
+        'input_validation',
+      ],
+      [
+        animatedGif({ frameCount: 301 }),
+        {},
+        'MEDIA_FRAMES_EXCEEDED',
+        'source_probe',
+      ],
+      [
+        animatedGif(),
+        { MAX_GIF_OUTPUT_BYTES: 10 },
+        'MEDIA_OUTPUT_TOO_LARGE',
+        'display_render',
+      ],
+    ] as const) {
+      try {
+        await render(bytes, patch);
+        expect.fail('Expected a decoder fault');
+      } catch (error) {
+        expect(error).toMatchObject({
+          code,
+          message: code,
+          stage,
+          retryable: false,
+        });
+        expect(JSON.stringify(error)).not.toMatch(
+          /private-path|stderr|input.gif|gif-test-/,
+        );
+        expect(error).not.toHaveProperty('cause');
+      }
+    }
+  });
   it('rejects still, malformed, truncated, and wrong actual bytes', async () => {
     const animated = animatedGif();
     const still = Buffer.concat([
@@ -64,6 +119,12 @@ describe('real sandboxed GIF decoding', () => {
       Buffer.from('GIF89a malformed;'),
     ])
       await expect(render(value)).rejects.toHaveProperty('code');
+    const largeCorrupt = animatedGif({ width: 165, height: 293 });
+    largeCorrupt[56] = 0; // Invalid LZW minimum code size, past the valid header.
+    await expect(render(largeCorrupt)).rejects.toMatchObject({
+      code: 'MEDIA_DECODE_FAILED',
+      stage: 'source_probe',
+    });
     const corrupt = Buffer.from(animated);
     corrupt[60] = 255;
     await expect(render(corrupt)).rejects.toHaveProperty('code');

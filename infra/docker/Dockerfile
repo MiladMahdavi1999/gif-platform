@@ -35,12 +35,22 @@ RUN --mount=type=secret,id=proxy_ca \
 COPY infra/decoder/sandbox.c /sandbox.c
 RUN cc -shared -fPIC -O2 -Wall -Werror -o /sandbox.so /sandbox.c
 
-FROM runtime AS worker
+# FFmpeg 5.1's GIF demuxer scans then rewinds the whole input, which fails
+# on inherited pipes once the AVIO seek-back buffer is exceeded. Keep the
+# API/web runtime unchanged; Trixie's maintained FFmpeg supports streaming GIFs.
+FROM node:24.19.0-trixie-slim@sha256:ab3eebe934147fee049b5eb83c570f68c849a13c930bdfa482de99fcdfa3b3de AS worker
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
+WORKDIR /app
+COPY --from=runtime --chown=node:node /app /app
+ARG SOURCE_REVISION
+LABEL org.opencontainers.image.source="https://github.com/MiladMahdavi1999/gif-platform" \
+      org.opencontainers.image.revision=$SOURCE_REVISION
 USER root
 RUN --mount=type=secret,id=proxy_ca \
     if [ -f /run/secrets/proxy_ca ]; then export SSL_CERT_FILE=/run/secrets/proxy_ca; fi; \
-    apt-get update && apt-get install -y --no-install-recommends ffmpeg=7:5.1.9-0+deb12u1 && rm -rf /var/lib/apt/lists/*
+    apt-get update && apt-get install -y --no-install-recommends ffmpeg=7:7.1.5-0+deb13u1 && rm -rf /var/lib/apt/lists/*
 COPY --from=decoder-build /sandbox.so /app/infra/decoder/sandbox.so
+COPY --chown=node:node scripts/reproduce-decoder.mjs scripts/reproduce-decoder.mjs
 USER node
 CMD ["node", "apps/worker/dist/main.js"]
 
